@@ -210,7 +210,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 10px 12px;
-      height: 170px;
+      height: 185px;
       overflow-y: auto;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 0.79rem;
@@ -251,7 +251,6 @@
       font-size: 0.9rem;
     }
 
-    /* Ders Notu Önizleme (Ekranda koyu tema, baskıda A4 beyaz tema) */
     #note-preview {
       background: #141a21;
       border: 1px solid var(--border);
@@ -344,12 +343,8 @@
       margin-top: 6px;
     }
 
-    /* ================= A4 PDF BASKI STİLİ ================= */
     @media print {
-      @page {
-        size: A4;
-        margin: 14mm 14mm 16mm 14mm;
-      }
+      @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
 
       body {
         background: #ffffff !important;
@@ -358,15 +353,9 @@
         line-height: 1.48;
       }
 
-      .no-print {
-        display: none !important;
-      }
+      .no-print { display: none !important; }
 
-      .app-container {
-        max-width: 100%;
-        padding: 0;
-        margin: 0;
-      }
+      .app-container { max-width: 100%; padding: 0; margin: 0; }
 
       .card {
         border: none !important;
@@ -443,8 +432,8 @@
   <div class="app-container">
     <header class="app-header no-print">
       <div>
-        <h1>Kayıpsız Ders Notu Asistanı</h1>
-        <div class="hint">Ses Kaydı → Ham Döküm → PDF Referanslı Revizyon → Kayıpsız Not → Otomatik Eksik Denetimi → PDF</div>
+        <h1>Kayıpsız Ders Notu Asistanı <span style="font-size:0.75rem; color:var(--muted); font-weight:500;">v2</span></h1>
+        <div class="hint">Ses Kaydı / Büyük Dosya Otomatik Bölme → Ham Döküm → PDF Revizyon → Kayıpsız Not → Eksik Denetimi → PDF</div>
       </div>
       <div class="row fit">
         <span id="status-badge" class="badge">Hazır</span>
@@ -453,7 +442,6 @@
     </header>
 
     <div class="grid no-print">
-      <!-- 1. AYARLAR KARTI -->
       <div class="card">
         <h2>1. API ve İşleme Ayarları</h2>
         <label for="api-key">Google AI Studio API Anahtarı (yalnızca bu cihazda saklanır)</label>
@@ -462,7 +450,7 @@
           <button id="btn-save-key" class="fit">Kaydet</button>
         </div>
 
-        <label for="model-select">Gemini Modeli (Ücretsiz Flash önerilir)</label>
+        <label for="model-input">Gemini Modeli (Kararlı Flash önerilir)</label>
         <div class="row">
           <input type="text" id="model-input" value="gemini-2.5-flash" list="model-list" />
           <datalist id="model-list">
@@ -476,22 +464,22 @@
         <div class="row">
           <div>
             <label for="chunk-min">Parça Süresi (dk)</label>
-            <input type="number" id="chunk-min" value="8" min="3" max="15" />
+            <input type="number" id="chunk-min" value="5" min="2" max="10" />
           </div>
           <div>
             <label for="cooldown-sec">İstek Arası Bekleme (sn)</label>
             <input type="number" id="cooldown-sec" value="10" min="3" max="60" />
           </div>
         </div>
+        <div class="hint">Hazır ses dosyaları 18 MB sınırına takılmamak için tarayıcıda otomatik en fazla 5 dk'lık parçalara bölünür.</div>
 
         <label for="lecture-title">Ders Başlığı (PDF üst başlığı)</label>
         <input type="text" id="lecture-title" placeholder="Örn: Farmakoloji - Antiemetikler" />
       </div>
 
-      <!-- 2. MATERYAL & KAYIT KARTI -->
       <div class="card">
         <h2>2. Referans PDF ve Ses Kaydı</h2>
-        <label for="pdf-file">Dersin Referans PDF Materyali (Slayt / Ders Notu)</label>
+        <label for="pdf-file">Dersin Referans PDF Materyali (Slayt / Ders Notu, 14 MB altı önerilir)</label>
         <input type="file" id="pdf-file" accept="application/pdf" />
         <div id="pdf-info" class="hint">Henüz PDF seçilmedi.</div>
 
@@ -508,7 +496,7 @@
           </div>
         </div>
 
-        <label for="audio-file" style="margin-top: 14px;">Veya Hazır Ses Dosyası Yükle (MP3 / M4A / WAV / WEBM)</label>
+        <label for="audio-file" style="margin-top: 14px;">Veya Hazır Ses Dosyası Yükle (M4A / MP3 / WAV / WEBM — boyut sınırı yok)</label>
         <div class="row">
           <input type="file" id="audio-file" accept="audio/*" />
           <button id="btn-process-file" class="success fit" disabled>Dosyayı İşle</button>
@@ -516,7 +504,6 @@
       </div>
     </div>
 
-    <!-- İLERLEME VE LOG -->
     <div class="card no-print" style="margin-bottom: 18px;">
       <h2>
         <span>3. İşlem Akışı ve Durum</span>
@@ -525,10 +512,9 @@
       <div class="progress-wrap">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
-      <div class="log-box" id="log-box">Sistem hazır. API anahtarını girip ders PDF'ini seçtikten sonra kayda başlayabilirsin.</div>
+      <div class="log-box" id="log-box">Sistem hazır (v2). Büyük ses dosyaları tarayıcıda otomatik parçalanır.</div>
     </div>
 
-    <!-- SONUÇ ALANI -->
     <div class="card">
       <div class="tabs no-print">
         <button class="tab-btn active" data-tab="note">PDF Ders Notu Önizleme</button>
@@ -560,7 +546,7 @@
 
   <script>
     /* ============================================================
-       1. INDEXEDDB YEREL YEDEKLEME (ÇÖKME KORUMASI)
+       1. INDEXEDDB YEREL YEDEKLEME
     ============================================================ */
     const DB_NAME = 'DersNotuBackupDB';
     const STORE_NAME = 'segments';
@@ -609,7 +595,7 @@
     }
 
     /* ============================================================
-       2. UYGULAMA DURUMU VE DOM REFERANSLARI
+       2. UYGULAMA DURUMU VE DOM
     ============================================================ */
     const $ = (id) => document.getElementById(id);
 
@@ -625,7 +611,7 @@
       nextRec: null,
       backupRec: null,
       backupChunks: [],
-      segments: [],        // { index, blob, mimeType, label }
+      segments: [],
       fullAudioBlob: null,
       pdfFile: null,
       uploadedAudioFile: null,
@@ -635,10 +621,13 @@
       lastApiCallAt: 0
     };
 
-    // Kayıtlı ayarları yükle
     $('api-key').value = localStorage.getItem('gemini_api_key') || '';
-    if (localStorage.getItem('gemini_model')) {
-      $('model-input').value = localStorage.getItem('gemini_model');
+    const savedModel = localStorage.getItem('gemini_model') || '';
+    if (savedModel && !savedModel.includes('omni')) {
+      $('model-input').value = savedModel;
+    } else {
+      $('model-input').value = 'gemini-2.5-flash';
+      localStorage.setItem('gemini_model', 'gemini-2.5-flash');
     }
 
     function log(msg, type = '') {
@@ -676,19 +665,13 @@
     }
 
     function pickAudioMime() {
-      const candidates = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/mp4',
-        'audio/ogg;codecs=opus'
-      ];
+      const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
       for (const m of candidates) {
         if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
       }
       return '';
     }
 
-    // Sekme geçişleri
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
@@ -698,19 +681,16 @@
       });
     });
 
-    // API key kaydetme
     $('btn-save-key').addEventListener('click', () => {
-      const key = $('api-key').value.trim();
-      localStorage.setItem('gemini_api_key', key);
+      localStorage.setItem('gemini_api_key', $('api-key').value.trim());
       localStorage.setItem('gemini_model', $('model-input').value.trim());
-      log('API anahtarı ve model tercihi yerel tarayıcıya kaydedildi.', 'ok');
+      log('API anahtarı ve model tercihi kaydedildi.', 'ok');
     });
 
     $('model-input').addEventListener('change', () => {
       localStorage.setItem('gemini_model', $('model-input').value.trim());
     });
 
-    // Modelleri dinamik listele
     $('btn-fetch-models').addEventListener('click', async () => {
       const key = $('api-key').value.trim();
       if (!key) return alert('Önce Google AI Studio API anahtarını gir.');
@@ -732,23 +712,30 @@
           opt.value = m;
           list.appendChild(opt);
         });
-        if (models.length) {
-          const bestFlash = models.find((m) => m.includes('flash') && !m.includes('image') && !m.includes('tts')) || models[0];
+
+        const preferred = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+        const bestFlash =
+          preferred.find((p) => models.includes(p)) ||
+          models.find((m) => m.includes('flash') && !m.includes('omni') && !m.includes('image') && !m.includes('tts') && !m.includes('live') && !m.includes('preview')) ||
+          models.find((m) => m.includes('flash') && !m.includes('omni') && !m.includes('image') && !m.includes('tts')) ||
+          models[0];
+
+        if (bestFlash) {
           $('model-input').value = bestFlash;
           localStorage.setItem('gemini_model', bestFlash);
-          log(`${models.length} model bulundu. Önerilen seçildi: ${bestFlash}`, 'ok');
+          log(`${models.length} model bulundu. Kararlı model seçildi: ${bestFlash}`, 'ok');
         }
       } catch (e) {
         log(`Modeller alınamadı: ${e.message}`, 'err');
       }
     });
 
-    // PDF ve hazır ses seçimi
     $('pdf-file').addEventListener('change', (e) => {
       const f = e.target.files[0];
       state.pdfFile = f || null;
+      const mb = f ? (f.size / 1024 / 1024).toFixed(2) : 0;
       $('pdf-info').textContent = f
-        ? `Seçildi: ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`
+        ? `Seçildi: ${f.name} (${mb} MB)${Number(mb) > 14 ? ' — Uyarı: 14 MB üstü PDF için sıkıştırma önerilir.' : ''}`
         : 'Henüz PDF seçilmedi.';
       if (f && !$('lecture-title').value.trim()) {
         $('lecture-title').value = f.name.replace(/\.pdf$/i, '');
@@ -766,14 +753,13 @@
       }
     });
 
-    // Önceki yarım kalmış kayıt kontrolü
     (async () => {
       try {
         const saved = await loadSegmentsFromDB();
         if (saved.length > 0) {
           $('btn-recover').style.display = 'inline-block';
           $('btn-recover').textContent = `Kurtar (${saved.length} parça)`;
-          log(`Önceki oturumdan ${saved.length} ses parçası bulundu. İstersen "Kurtar" ile işleyebilirsin.`, 'warn');
+          log(`Önceki oturumdan ${saved.length} ses parçası bulundu.`, 'warn');
         }
       } catch (_) {}
     })();
@@ -784,12 +770,116 @@
       state.segments = saved;
       $('seg-count').textContent = `Kurtarılan parça: ${saved.length}`;
       $('btn-recover').style.display = 'none';
-      log(`${saved.length} parça kurtarıldı, işleme başlatılıyor...`, 'ok');
-      await runPipelineFromSegments(saved);
+      await runPipelineFromSegments(saved, true);
     });
 
     /* ============================================================
-       3. ÖRTÜŞMELİ CANLI SES KAYDI (WAKE LOCK + INDEXEDDB)
+       3. TARAYICI İÇİ BÜYÜK SES DOSYASI BÖLÜCÜ (16 kHz MONO WAV)
+    ============================================================ */
+    function encodeWavMono16k(float32Samples, sampleRate) {
+      const numSamples = float32Samples.length;
+      const buffer = new ArrayBuffer(44 + numSamples * 2);
+      const view = new DataView(buffer);
+
+      const writeStr = (off, str) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i));
+      };
+
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + numSamples * 2, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, 'data');
+      view.setUint32(40, numSamples * 2, true);
+
+      let offset = 44;
+      for (let i = 0; i < numSamples; i++) {
+        const s = Math.max(-1, Math.min(1, float32Samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    async function splitAudioFileInBrowser(file, maxChunkSec = 300, overlapSec = 15) {
+      log('Ses dosyası tarayıcıda çözülüyor ve küçük parçalara bölünüyor (5–15 sn sürebilir)...');
+      const arrayBuffer = await file.arrayBuffer();
+
+      const targetRate = 16000;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      let audioCtx;
+      try {
+        audioCtx = new AudioCtx({ sampleRate: targetRate });
+      } catch (_) {
+        audioCtx = new AudioCtx();
+      }
+
+      let audioBuffer;
+      try {
+        audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      } finally {
+        try { await audioCtx.close(); } catch (_) {}
+      }
+
+      const origRate = audioBuffer.sampleRate;
+      const numChannels = audioBuffer.numberOfChannels;
+      const origLen = audioBuffer.length;
+      const durationSec = audioBuffer.duration;
+      const targetLen = Math.floor(durationSec * targetRate);
+      const mono16k = new Float32Array(targetLen);
+      const ratio = origRate / targetRate;
+
+      const chData = [];
+      for (let c = 0; c < numChannels; c++) chData.push(audioBuffer.getChannelData(c));
+
+      if (Math.abs(ratio - 1) < 0.001) {
+        for (let i = 0; i < targetLen; i++) {
+          let sum = 0;
+          for (let c = 0; c < numChannels; c++) sum += chData[c][i];
+          mono16k[i] = sum / numChannels;
+        }
+      } else {
+        for (let i = 0; i < targetLen; i++) {
+          const from = Math.floor(i * ratio);
+          const to = Math.min(origLen, Math.max(from + 1, Math.floor((i + 1) * ratio)));
+          let sum = 0;
+          for (let s = from; s < to; s++) {
+            for (let c = 0; c < numChannels; c++) sum += chData[c][s];
+          }
+          mono16k[i] = sum / ((to - from) * numChannels);
+        }
+      }
+
+      const chunks = [];
+      let startSec = 0;
+      let index = 0;
+      while (startSec < durationSec) {
+        const endSec = Math.min(durationSec, startSec + maxChunkSec);
+        const startSample = Math.floor(startSec * targetRate);
+        const endSample = Math.min(targetLen, Math.floor(endSec * targetRate));
+        const wavBlob = encodeWavMono16k(mono16k.subarray(startSample, endSample), targetRate);
+        chunks.push({
+          index,
+          blob: wavBlob,
+          mimeType: 'audio/wav',
+          label: `${formatMMSS(startSec)} - ${formatMMSS(endSec)}`
+        });
+        if (endSec >= durationSec) break;
+        startSec = Math.max(startSec + 10, endSec - overlapSec);
+        index++;
+      }
+      return { chunks, durationSec };
+    }
+
+    /* ============================================================
+       4. CANLI ÖRTÜŞMELİ SES KAYDI
     ============================================================ */
     function createSegmentRecorder(stream, mimeType, segIndex, startOffsetSec) {
       const options = { audioBitsPerSecond: 32000 };
@@ -799,9 +889,7 @@
       let resolveStop;
       const donePromise = new Promise((r) => { resolveStop = r; });
 
-      rec.ondataavailable = (ev) => {
-        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
-      };
+      rec.ondataavailable = (ev) => { if (ev.data && ev.data.size > 0) chunks.push(ev.data); };
 
       rec.onstop = async () => {
         const actualMime = rec.mimeType || mimeType || 'audio/webm';
@@ -841,8 +929,8 @@
     }
 
     function scheduleNextOverlap(mimeType) {
-      const chunkMs = Math.max(3, Number($('chunk-min').value) || 8) * 60 * 1000;
-      const overlapMs = 15000; // 15 saniye örtüşme
+      const chunkMs = Math.max(2, Number($('chunk-min').value) || 5) * 60 * 1000;
+      const overlapMs = 15000;
 
       state.overlapTimer = setTimeout(() => {
         if (!state.recording) return;
@@ -850,7 +938,7 @@
         const startSec = Math.floor((Date.now() - state.startTime) / 1000);
         try {
           state.nextRec = createSegmentRecorder(state.stream, mimeType, nextIndex, startSec);
-          log(`15 sn örtüşme başladı (Parça ${nextIndex + 1} paralel kayda girdi)...`);
+          log(`15 sn örtüşme başladı (Parça ${nextIndex + 1})...`);
         } catch (e) {
           log(`Paralel örtüşme desteklenmedi, tek parça devam ediliyor: ${e.message}`, 'warn');
           return;
@@ -869,7 +957,7 @@
 
     $('btn-start').addEventListener('click', async () => {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        return alert('Tarayıcı mikrofon erişimini desteklemiyor. Sayfanın HTTPS (GitHub Pages) üzerinden açıldığından emin ol.');
+        return alert('Tarayıcı mikrofon erişimini desteklemiyor. Sayfanın HTTPS üzerinden açıldığından emin ol.');
       }
 
       try {
@@ -885,10 +973,8 @@
         state.stream = stream;
         state.recording = true;
         state.startTime = Date.now();
-
         const mimeType = pickAudioMime();
 
-        // Tam yedek kayıtlayıcı (tek parça ses indirilebilsin diye)
         try {
           const bOpts = { audioBitsPerSecond: 32000 };
           if (mimeType) bOpts.mimeType = mimeType;
@@ -916,7 +1002,7 @@
         $('btn-stop-process').disabled = false;
         $('btn-process-file').disabled = true;
         setStatus('Kayıt Alınıyor', 'rec');
-        log(`Kayıt başladı (${mimeType || 'varsayılan format'}, 32 kbps Opus, ${$('chunk-min').value} dk parça + 15 sn örtüşme).`, 'ok');
+        log(`Kayıt başladı (32 kbps, ${$('chunk-min').value} dk parça + 15 sn örtüşme).`, 'ok');
       } catch (err) {
         log(`Mikrofon başlatılamadı: ${err.message}`, 'err');
         alert('Mikrofon izni verilmedi veya HTTPS bağlantısı yok.');
@@ -942,10 +1028,9 @@
         state.nextRec.rec.stop();
         waits.push(state.nextRec.donePromise);
       }
-      if (state.backupRec && state.backupRec.state === 'recording') {
+      if (state.backupRec && state.backupRec.rec.state === 'recording') {
         state.backupRec.stop();
       }
-
       await Promise.all(waits);
 
       if (state.stream) {
@@ -956,7 +1041,6 @@
         try { await state.wakeLock.release(); } catch (_) {}
         state.wakeLock = null;
       }
-
       if (!state.fullAudioBlob && state.segments.length === 1) {
         state.fullAudioBlob = state.segments[0].blob;
         $('btn-download-audio').disabled = false;
@@ -965,17 +1049,15 @@
       state.segments.sort((a, b) => a.index - b.index);
       log(`Kayıt tamamlandı. Toplam ${state.segments.length} parça işlenecek.`, 'ok');
 
-      await runPipelineFromSegments(state.segments);
+      await runPipelineFromSegments(state.segments, true);
       $('btn-start').disabled = false;
       if (state.uploadedAudioFile) $('btn-process-file').disabled = false;
     });
 
     /* ============================================================
-       4. GEMINI API İLETİŞİMİ (FILES API + INLINE FALLBACK + 429 RETRY)
+       5. GEMINI API (DOĞRUDAN INLINE AKTARIM + 429 KORUMASI)
     ============================================================ */
-    function sleep(ms) {
-      return new Promise((r) => setTimeout(r, ms));
-    }
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     function blobToBase64(blob) {
       return new Promise((resolve, reject) => {
@@ -986,54 +1068,18 @@
       });
     }
 
-    async function prepareMediaPart(blob, mimeType, displayName, apiKey) {
+    async function prepareMediaPart(blob, mimeType, displayName) {
       const cleanMime = (mimeType || blob.type || 'application/octet-stream').split(';')[0];
+      const maxInlineBytes = 14.5 * 1024 * 1024;
 
-      // 1) Büyük dosyalar veya tekrar kullanılacak PDF için önce Files API dene
-      try {
-        const boundary = '-------GeminiMultipart' + Date.now();
-        const metadata = JSON.stringify({ file: { display_name: displayName } });
-        const bodyBlob = new Blob([
-          `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`,
-          `--${boundary}\r\nContent-Type: ${cleanMime}\r\n\r\n`,
-          blob,
-          `\r\n--${boundary}--\r\n`
-        ]);
-
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=multipart&key=${encodeURIComponent(apiKey)}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-            body: bodyBlob
-          }
-        );
-
-        if (!res.ok) throw new Error(`Files API HTTP ${res.status}`);
-        const json = await res.json();
-        let fileInfo = json.file;
-
-        // Dosya ACTIVE olana kadar bekle
-        let tries = 0;
-        while (fileInfo.state === 'PROCESSING' && tries < 30) {
-          await sleep(2500);
-          const check = await fetch(`https://generativelanguage.googleapis.com/v1beta/${fileInfo.name}?key=${encodeURIComponent(apiKey)}`);
-          if (check.ok) fileInfo = await check.json();
-          tries++;
-        }
-
-        if (fileInfo.state === 'FAILED') throw new Error('Gemini dosya işleme başarısız');
-        log(`Dosya Gemini sunucusuna yüklendi: ${displayName}`, 'ok');
-        return { file_data: { mime_type: cleanMime, file_uri: fileInfo.uri } };
-      } catch (err) {
-        // 2) Files API CORS/ağ hatası verirse 18 MB altına kadar inlineData kullan
-        if (blob.size <= 18 * 1024 * 1024) {
-          log(`Files API atlandı (${err.message}), doğrudan gömülü aktarım kullanılıyor: ${displayName}`, 'warn');
-          const b64 = await blobToBase64(blob);
-          return { inline_data: { mime_type: cleanMime, data: b64 } };
-        }
-        throw new Error(`${displayName} 18 MB üstünde ve Files API yüklemesi başarısız oldu: ${err.message}`);
+      if (blob.size <= maxInlineBytes) {
+        const b64 = await blobToBase64(blob);
+        return { inline_data: { mime_type: cleanMime, data: b64 } };
       }
+
+      throw new Error(
+        `${displayName} (${(blob.size / 1024 / 1024).toFixed(1)} MB) tarayıcıdan doğrudan gönderim sınırını (14.5 MB) aşıyor. Eğer bu bir PDF ise ücretsiz bir PDF sıkıştırıcı (ör. iLovePDF) ile 14 MB altına indirip tekrar seçebilirsin.`
+      );
     }
 
     async function callGemini({ apiKey, model, parts, systemInstruction, temperature = 0.1, responseMimeType = null }) {
@@ -1049,12 +1095,8 @@
         contents: [{ role: 'user', parts }],
         generationConfig: { temperature }
       };
-      if (systemInstruction) {
-        payload.systemInstruction = { parts: [{ text: systemInstruction }] };
-      }
-      if (responseMimeType) {
-        payload.generationConfig.responseMimeType = responseMimeType;
-      }
+      if (systemInstruction) payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+      if (responseMimeType) payload.generationConfig.responseMimeType = responseMimeType;
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
@@ -1096,7 +1138,7 @@
     }
 
     /* ============================================================
-       5. 4 AŞAMALI KAYIPSIZ İŞLEME ZİNCİRİ
+       6. 4 AŞAMALI KAYIPSIZ İŞLEME ZİNCİRİ
     ============================================================ */
     const PROMPT_STAGE_1_STT = `Sen profesyonel bir akademik transkripsiyon uzmanısın.
 Görevin: Verilen ders ses kaydını kelimesi kelimesine, eksiksiz ham metne dökmek.
@@ -1163,33 +1205,27 @@ YANIT FORMATI (Sadece geçerli JSON):
       $('btn-download-txt').disabled = state.revisedParts.length === 0;
     }
 
-    async function processOneUnit({ idx, total, label, audioPart, timeWindowInstruction, pdfPart, apiKey, model, prevTail }) {
+    async function processOneUnit({ idx, total, label, audioPart, pdfPart, apiKey, model, prevTail }) {
       const basePct = (idx / total) * 100;
       const stepPct = 100 / total;
 
-      // AŞAMA 1: STT
       setProgress(basePct + stepPct * 0.1, `Parça ${idx + 1}/${total} — 1/4 Ham Transkript`);
       log(`[Parça ${idx + 1}/${total}] Aşama 1: Ses birebir metne dökülüyor (${label})...`);
-      const sttUserText = timeWindowInstruction
-        ? `Yalnızca şu zaman aralığını kelimesi kelimesine dök: ${timeWindowInstruction}. Bu aralığın dışına çıkma.`
-        : `Bu ses kaydını (${label}) kelimesi kelimesine ham metne dök.`;
-
       const rawTranscript = await callGemini({
         apiKey,
         model,
         systemInstruction: PROMPT_STAGE_1_STT,
-        parts: [audioPart, { text: sttUserText }],
+        parts: [audioPart, { text: `Bu ses kaydını (${label}) kelimesi kelimesine ham metne dök.` }],
         temperature: 0.0
       });
       log(`[Parça ${idx + 1}] Ham döküm alındı (${rawTranscript.length} karakter).`, 'ok');
 
-      // AŞAMA 2: PDF Referanslı Revizyon
       setProgress(basePct + stepPct * 0.35, `Parça ${idx + 1}/${total} — 2/4 PDF Referanslı Revizyon`);
-      log(`[Parça ${idx + 1}/${total}] Aşama 2: PDF referanslı terminoloji ve hata revizyonu...`);
+      log(`[Parça ${idx + 1}/${total}] Aşama 2: PDF referanslı terminoloji revizyonu...`);
       const reviseParts = [];
       if (pdfPart) reviseParts.push(pdfPart);
       reviseParts.push({
-        text: `${pdfPart ? 'Ekteki ders PDF materyalini yalnızca terminoloji ve yazım sözlüğü olarak referans al.' : 'Referans PDF yüklenmedi; yalnızca açık ses tanıma/yazım hatalarını anlam değiştirmeden düzelt.'}\n\nHAM TRANSKRİPT:\n${rawTranscript}`
+        text: `${pdfPart ? 'Ekteki ders PDF materyalini yalnızca terminoloji ve yazım sözlüğü olarak referans al.' : 'Referans PDF yüklenmedi; yalnızca açık yazım hatalarını anlam değiştirmeden düzelt.'}\n\nHAM TRANSKRİPT:\n${rawTranscript}`
       });
 
       const revisedText = await callGemini({
@@ -1202,7 +1238,6 @@ YANIT FORMATI (Sadece geçerli JSON):
       state.revisedParts.push({ label, text: revisedText });
       log(`[Parça ${idx + 1}] Revizyon tamamlandı.`, 'ok');
 
-      // AŞAMA 3: Kayıpsız HTML Notu
       setProgress(basePct + stepPct * 0.65, `Parça ${idx + 1}/${total} — 3/4 Kayıpsız Ders Notu`);
       log(`[Parça ${idx + 1}/${total}] Aşama 3: Kayıpsız yapılandırılmış HTML notu üretiliyor...`);
       const noteParts = [];
@@ -1220,7 +1255,6 @@ YANIT FORMATI (Sadece geçerli JSON):
       }));
       log(`[Parça ${idx + 1}] İlk HTML notu hazırlandı.`, 'ok');
 
-      // AŞAMA 4: Otomatik Eksik Denetimi (Audit)
       setProgress(basePct + stepPct * 0.85, `Parça ${idx + 1}/${total} — 4/4 Eksik Denetimi`);
       log(`[Parça ${idx + 1}/${total}] Aşama 4: Eksik bilgi denetimi (Audit) yapılıyor...`);
       let auditRes = { label, eksik_var: false, eksikler: [] };
@@ -1256,11 +1290,10 @@ YANIT FORMATI (Sadece geçerli JSON):
       state.htmlParts.push(chunkHtml);
       state.auditReports.push(auditRes);
       renderOutputs();
-
       return revisedText.slice(-450);
     }
 
-    async function runPipelineFromSegments(segments) {
+    async function runPipelineFromSegments(segments, clearDbOnDone = false) {
       const apiKey = $('api-key').value.trim();
       const model = $('model-input').value.trim() || 'gemini-2.5-flash';
       if (!apiKey) return alert('İşleme başlamak için önce Google AI Studio API anahtarını gir.');
@@ -1275,8 +1308,9 @@ YANIT FORMATI (Sadece geçerli JSON):
       try {
         let pdfPart = null;
         if (state.pdfFile) {
-          log(`Referans PDF hazırlanıyor: ${state.pdfFile.name}...`);
-          pdfPart = await prepareMediaPart(state.pdfFile, 'application/pdf', state.pdfFile.name, apiKey);
+          log(`Referans PDF hazırlanıyor: ${state.pdfFile.name} (${(state.pdfFile.size / 1024 / 1024).toFixed(2)} MB)...`);
+          pdfPart = await prepareMediaPart(state.pdfFile, 'application/pdf', state.pdfFile.name);
+          log('Referans PDF belleğe alındı.', 'ok');
         } else {
           log('Uyarı: Referans PDF seçilmedi. Revizyon yalnızca genel akademik yazım üzerinden yapılacak.', 'warn');
         }
@@ -1284,13 +1318,12 @@ YANIT FORMATI (Sadece geçerli JSON):
         let prevTail = '';
         for (let i = 0; i < segments.length; i++) {
           const seg = segments[i];
-          const audioPart = await prepareMediaPart(seg.blob, seg.mimeType, `parca_${i + 1}.webm`, apiKey);
+          const audioPart = await prepareMediaPart(seg.blob, seg.mimeType, `parca_${i + 1}`);
           prevTail = await processOneUnit({
             idx: i,
             total: segments.length,
             label: seg.label,
             audioPart,
-            timeWindowInstruction: null,
             pdfPart,
             apiKey,
             model,
@@ -1301,94 +1334,35 @@ YANIT FORMATI (Sadece geçerli JSON):
         setProgress(100, 'Tamamlandı!');
         setStatus('Tamamlandı', 'ok');
         log('TÜM AŞAMALAR TAMAMLANDI! "PDF Olarak Kaydet / Yazdır" ile ders notunu indirebilirsin.', 'ok');
-        await clearSegmentsDB();
+        if (clearDbOnDone) await clearSegmentsDB();
       } catch (err) {
         setStatus('Hata Oluştu');
         log(`İŞLEM DURDU: ${err.message}`, 'err');
-        alert(`Hata oluştu: ${err.message}\n\nNot: Ses parçaların IndexedDB'de saklıdır, sayfa yenilense de kurtarabilirsin.`);
+        alert(`Hata: ${err.message}`);
       }
-    }
-
-    // Hazır ses dosyasını zaman pencerelerine bölerek işleme
-    function getAudioDuration(file) {
-      return new Promise((resolve) => {
-        const audio = document.createElement('audio');
-        audio.preload = 'metadata';
-        audio.onloadedmetadata = () => {
-          URL.revokeObjectURL(audio.src);
-          resolve(isFinite(audio.duration) ? audio.duration : 0);
-        };
-        audio.onerror = () => resolve(0);
-        audio.src = URL.createObjectURL(file);
-      });
     }
 
     $('btn-process-file').addEventListener('click', async () => {
       const file = state.uploadedAudioFile;
       const apiKey = $('api-key').value.trim();
-      const model = $('model-input').value.trim() || 'gemini-2.5-flash';
       if (!apiKey) return alert('Önce Google AI Studio API anahtarını gir.');
       if (!file) return;
 
       $('btn-process-file').disabled = true;
       $('btn-start').disabled = true;
-      state.revisedParts = [];
-      state.htmlParts = [];
-      state.auditReports = [];
-      setStatus('Dosya İşleniyor...', 'rec');
-      setProgress(2, 'Dosyalar yükleniyor...');
+      setStatus('Ses Bölünüyor...', 'rec');
+      setProgress(1, 'Ses dosyası parçalara bölünüyor...');
 
       try {
-        const durationSec = await getAudioDuration(file);
-        const chunkSec = Math.max(3, Number($('chunk-min').value) || 8) * 60;
-        const overlapSec = 15;
-
-        const windows = [];
-        if (durationSec > chunkSec) {
-          let start = 0;
-          while (start < durationSec) {
-            const end = Math.min(durationSec, start + chunkSec);
-            windows.push({
-              label: `${formatMMSS(start)} - ${formatMMSS(end)}`,
-              instruction: `${formatMMSS(start)} ile ${formatMMSS(end)} arası`
-            });
-            if (end >= durationSec) break;
-            start = end - overlapSec;
-          }
-        } else {
-          windows.push({ label: 'Tam Kayıt', instruction: null });
-        }
-
-        log(`Ses süresi: ${durationSec ? formatTime(durationSec) : 'bilinmiyor'} → ${windows.length} örtüşmeli dilimde işlenecek.`);
-
-        let pdfPart = null;
-        if (state.pdfFile) {
-          pdfPart = await prepareMediaPart(state.pdfFile, 'application/pdf', state.pdfFile.name, apiKey);
-        }
-        const audioPart = await prepareMediaPart(file, file.type || 'audio/mpeg', file.name, apiKey);
-
-        let prevTail = '';
-        for (let i = 0; i < windows.length; i++) {
-          prevTail = await processOneUnit({
-            idx: i,
-            total: windows.length,
-            label: windows[i].label,
-            audioPart,
-            timeWindowInstruction: windows[i].instruction,
-            pdfPart,
-            apiKey,
-            model,
-            prevTail
-          });
-        }
-
-        setProgress(100, 'Tamamlandı!');
-        setStatus('Tamamlandı', 'ok');
-        log('Hazır ses dosyasının işlenmesi tamamlandı!', 'ok');
+        const userSec = Math.max(120, (Number($('chunk-min').value) || 5) * 60);
+        const maxWavSec = Math.min(300, userSec); // En fazla 5 dk (~9.6 MB WAV)
+        const { chunks, durationSec } = await splitAudioFileInBrowser(file, maxWavSec, 15);
+        log(`Ses süresi: ${formatTime(durationSec)} → ${chunks.length} güvenli parçaya (~${(chunks[0].blob.size / 1024 / 1024).toFixed(1)} MB) bölündü.`, 'ok');
+        await runPipelineFromSegments(chunks, false);
       } catch (err) {
         setStatus('Hata Oluştu');
-        log(`HATA: ${err.message}`, 'err');
-        alert(`Hata: ${err.message}`);
+        log(`BÖLME HATASI: ${err.message}`, 'err');
+        alert(`Ses dosyası bölünemedi: ${err.message}`);
       } finally {
         $('btn-process-file').disabled = false;
         $('btn-start').disabled = false;
@@ -1396,7 +1370,7 @@ YANIT FORMATI (Sadece geçerli JSON):
     });
 
     /* ============================================================
-       6. ÇIKTI İNDİRME VE PDF YAZDIRMA
+       7. ÇIKTI İNDİRME VE PDF YAZDIRMA
     ============================================================ */
     $('btn-print-pdf').addEventListener('click', () => {
       document.querySelector('[data-tab="note"]').click();
