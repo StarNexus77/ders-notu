@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kayıpsız Ders Notu Asistanı</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     :root {
       --bg: #0f1419;
@@ -104,6 +105,18 @@
       color: var(--muted);
       margin: 10px 0 5px;
     }
+
+    label.check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 0.82rem;
+    }
+
+    label.check-row input { width: auto; margin: 0; }
 
     input[type="text"],
     input[type="password"],
@@ -354,7 +367,6 @@
       }
 
       .no-print { display: none !important; }
-
       .app-container { max-width: 100%; padding: 0; margin: 0; }
 
       .card {
@@ -432,8 +444,8 @@
   <div class="app-container">
     <header class="app-header no-print">
       <div>
-        <h1>Kayıpsız Ders Notu Asistanı <span style="font-size:0.75rem; color:var(--muted); font-weight:500;">v2</span></h1>
-        <div class="hint">Ses Kaydı / Büyük Dosya Otomatik Bölme → Ham Döküm → PDF Revizyon → Kayıpsız Not → Eksik Denetimi → PDF</div>
+        <h1>Kayıpsız Ders Notu Asistanı <span style="font-size:0.75rem; color:var(--success); font-weight:600;">v3</span></h1>
+        <div class="hint">Sınırsız Ses &amp; PDF → Ham Döküm → PDF Revizyon → Kayıpsız Not → Eksik Denetimi → PDF</div>
       </div>
       <div class="row fit">
         <span id="status-badge" class="badge">Hazır</span>
@@ -471,7 +483,7 @@
             <input type="number" id="cooldown-sec" value="10" min="3" max="60" />
           </div>
         </div>
-        <div class="hint">Hazır ses dosyaları 18 MB sınırına takılmamak için tarayıcıda otomatik en fazla 5 dk'lık parçalara bölünür.</div>
+        <div class="hint">Büyük sesler otomatik 5 dk'lık parçalara bölünür; büyük PDF'lerin metni tarayıcıda otomatik çıkarılır.</div>
 
         <label for="lecture-title">Ders Başlığı (PDF üst başlığı)</label>
         <input type="text" id="lecture-title" placeholder="Örn: Farmakoloji - Antiemetikler" />
@@ -479,11 +491,15 @@
 
       <div class="card">
         <h2>2. Referans PDF ve Ses Kaydı</h2>
-        <label for="pdf-file">Dersin Referans PDF Materyali (Slayt / Ders Notu, 14 MB altı önerilir)</label>
+        <label for="pdf-file">Dersin Referans PDF Materyali (boyut sınırı yok)</label>
         <input type="file" id="pdf-file" accept="application/pdf" />
         <div id="pdf-info" class="hint">Henüz PDF seçilmedi.</div>
+        <label class="check-row">
+          <input type="checkbox" id="pdf-text-only" checked />
+          <span>Hızlı &amp; kota dostu PDF okuma (metin çıkar, taranmışsa otomatik görselleştir)</span>
+        </label>
 
-        <div class="recorder-box" style="margin-top: 14px;">
+        <div class="recorder-box" style="margin-top: 12px;">
           <div class="timer" id="timer-display">00:00:00</div>
           <div class="meta-line">
             <span id="seg-count">Oluşan parça: 0</span>
@@ -512,7 +528,7 @@
       <div class="progress-wrap">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
-      <div class="log-box" id="log-box">Sistem hazır (v2). Büyük ses dosyaları tarayıcıda otomatik parçalanır.</div>
+      <div class="log-box" id="log-box">Sistem hazır (v3). Büyük ses dosyaları ve büyük PDF slaytlar tarayıcıda otomatik işlenir.</div>
     </div>
 
     <div class="card">
@@ -734,9 +750,7 @@
       const f = e.target.files[0];
       state.pdfFile = f || null;
       const mb = f ? (f.size / 1024 / 1024).toFixed(2) : 0;
-      $('pdf-info').textContent = f
-        ? `Seçildi: ${f.name} (${mb} MB)${Number(mb) > 14 ? ' — Uyarı: 14 MB üstü PDF için sıkıştırma önerilir.' : ''}`
-        : 'Henüz PDF seçilmedi.';
+      $('pdf-info').textContent = f ? `Seçildi: ${f.name} (${mb} MB)` : 'Henüz PDF seçilmedi.';
       if (f && !$('lecture-title').value.trim()) {
         $('lecture-title').value = f.name.replace(/\.pdf$/i, '');
       }
@@ -774,7 +788,101 @@
     });
 
     /* ============================================================
-       3. TARAYICI İÇİ BÜYÜK SES DOSYASI BÖLÜCÜ (16 kHz MONO WAV)
+       3. SINIRSIZ BOYUTLU PDF OKUYUCU (PDF.JS — METİN + TARANMIŞ YEDEK)
+    ============================================================ */
+    async function preparePdfReference(file) {
+      const mb = file.size / 1024 / 1024;
+      const forceTextMode = $('pdf-text-only').checked || mb > 14.2;
+
+      // Küçük PDF ve kullanıcı tam görsel modu seçtiyse ham PDF gönder
+      if (!forceTextMode && mb <= 14.2) {
+        const b64 = await blobToBase64(file);
+        log(`PDF doğrudan görsel belge olarak hazırlandı (${mb.toFixed(2)} MB).`, 'ok');
+        return { type: 'parts', parts: [{ inline_data: { mime_type: 'application/pdf', data: b64 } }] };
+      }
+
+      if (!window.pdfjsLib) {
+        throw new Error('PDF.js kütüphanesi yüklenemedi. İnternet bağlantını kontrol edip sayfayı yenile.');
+      }
+
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      log(`PDF tarayıcıda okunuyor: ${file.name} (${mb.toFixed(1)} MB)...`);
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+      const pageTexts = [];
+      let totalChars = 0;
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        let line = '';
+        for (const item of content.items) {
+          line += item.str + (item.hasEOL ? '\n' : ' ');
+        }
+        const cleaned = line.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+        if (cleaned) {
+          pageTexts.push(`--- SLAYT ${p} ---\n${cleaned}`);
+          totalChars += cleaned.replace(/\s+/g, '').length;
+        }
+      }
+
+      // Normal metin içeren slayt/ders notu PDF'i
+      if (totalChars >= 150) {
+        let fullText = pageTexts.join('\n\n');
+        if (fullText.length > 220000) {
+          fullText = fullText.slice(0, 220000) + '\n[...PDF çok uzun olduğu için son kısmı kırpıldı]';
+          log('PDF çok uzun olduğu için ilk 220.000 karakter referans alındı.', 'warn');
+        }
+        log(`PDF metni başarıyla çıkarıldı: ${pdf.numPages} sayfa, ${totalChars.toLocaleString('tr-TR')} karakter (0 MB yükleme!).`, 'ok');
+        return { type: 'text', text: fullText };
+      }
+
+      // Taranmış (görsel tabanlı) PDF yedeği
+      if (mb <= 14.2) {
+        const b64 = await blobToBase64(file);
+        log('PDF taranmış görsel formatında; doğrudan PDF olarak gönderilecek.', 'warn');
+        return { type: 'parts', parts: [{ inline_data: { mime_type: 'application/pdf', data: b64 } }] };
+      }
+
+      log(`PDF taranmış görsel formatında (${pdf.numPages} sayfa). Sayfalar tarayıcıda hafif JPEG'e sıkıştırılıyor...`, 'warn');
+      const imgParts = [];
+      let totalBytes = 0;
+      const maxBudget = 10.5 * 1024 * 1024;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const vp1 = page.getViewport({ scale: 1 });
+        const scale = Math.min(1.2, 920 / Math.max(vp1.width, vp1.height));
+        const vp = page.getViewport({ scale });
+        canvas.width = Math.round(vp.width);
+        canvas.height = Math.round(vp.height);
+
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.55);
+        const b64 = dataUrl.split(',')[1];
+        const estBytes = (b64.length * 3) / 4;
+
+        if (totalBytes + estBytes > maxBudget) {
+          log(`Sıkıştırılmış görsel bütçesi (10.5 MB) doldu: ilk ${p - 1}/${pdf.numPages} sayfa alındı.`, 'warn');
+          break;
+        }
+        totalBytes += estBytes;
+        imgParts.push({ inline_data: { mime_type: 'image/jpeg', data: b64 } });
+      }
+      canvas.width = 0;
+      canvas.height = 0;
+
+      log(`${imgParts.length} taranmış sayfa ${(totalBytes / 1024 / 1024).toFixed(2)} MB olarak sıkıştırıldı.`, 'ok');
+      return { type: 'parts', parts: imgParts };
+    }
+
+    /* ============================================================
+       4. TARAYICI İÇİ BÜYÜK SES DOSYASI BÖLÜCÜ (16 kHz MONO WAV)
     ============================================================ */
     function encodeWavMono16k(float32Samples, sampleRate) {
       const numSamples = float32Samples.length;
@@ -879,7 +987,7 @@
     }
 
     /* ============================================================
-       4. CANLI ÖRTÜŞMELİ SES KAYDI
+       5. CANLI ÖRTÜŞMELİ SES KAYDI
     ============================================================ */
     function createSegmentRecorder(stream, mimeType, segIndex, startOffsetSec) {
       const options = { audioBitsPerSecond: 32000 };
@@ -1055,7 +1163,7 @@
     });
 
     /* ============================================================
-       5. GEMINI API (DOĞRUDAN INLINE AKTARIM + 429 KORUMASI)
+       6. GEMINI API (DOĞRUDAN INLINE AKTARIM + 429 KORUMASI)
     ============================================================ */
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -1068,18 +1176,13 @@
       });
     }
 
-    async function prepareMediaPart(blob, mimeType, displayName) {
-      const cleanMime = (mimeType || blob.type || 'application/octet-stream').split(';')[0];
-      const maxInlineBytes = 14.5 * 1024 * 1024;
-
-      if (blob.size <= maxInlineBytes) {
-        const b64 = await blobToBase64(blob);
-        return { inline_data: { mime_type: cleanMime, data: b64 } };
+    async function prepareAudioPart(blob, mimeType, displayName) {
+      const cleanMime = (mimeType || blob.type || 'audio/wav').split(';')[0];
+      if (blob.size > 14.5 * 1024 * 1024) {
+        throw new Error(`${displayName} 14.5 MB üstünde. Parça süresini 3 veya 4 dakikaya düşürüp tekrar dene.`);
       }
-
-      throw new Error(
-        `${displayName} (${(blob.size / 1024 / 1024).toFixed(1)} MB) tarayıcıdan doğrudan gönderim sınırını (14.5 MB) aşıyor. Eğer bu bir PDF ise ücretsiz bir PDF sıkıştırıcı (ör. iLovePDF) ile 14 MB altına indirip tekrar seçebilirsin.`
-      );
+      const b64 = await blobToBase64(blob);
+      return { inline_data: { mime_type: cleanMime, data: b64 } };
     }
 
     async function callGemini({ apiKey, model, parts, systemInstruction, temperature = 0.1, responseMimeType = null }) {
@@ -1138,7 +1241,7 @@
     }
 
     /* ============================================================
-       6. 4 AŞAMALI KAYIPSIZ İŞLEME ZİNCİRİ
+       7. 4 AŞAMALI KAYIPSIZ İŞLEME ZİNCİRİ
     ============================================================ */
     const PROMPT_STAGE_1_STT = `Sen profesyonel bir akademik transkripsiyon uzmanısın.
 Görevin: Verilen ders ses kaydını kelimesi kelimesine, eksiksiz ham metne dökmek.
@@ -1150,9 +1253,9 @@ KURALLAR:
 - Sadece ham metni çıktı ver.`;
 
     const PROMPT_STAGE_2_REVISE = `Sen son derece titiz bir akademik transkripsiyon editörüsün.
-Görevin: Verilen ham ses dökümündeki yalnızca ses tanıma (ASR) kaynaklı duyma, yazım ve teknik terim hatalarını ekteki referans PDF ders materyaline bakarak düzeltmek.
+Görevin: Verilen ham ses dökümündeki yalnızca ses tanıma (ASR) kaynaklı duyma, yazım ve teknik terim hatalarını verilen referans ders PDF materyaline bakarak düzeltmek.
 KESİN KURALLAR:
-1. Yalnızca bozuk yazılmış teknik terimleri, ilaç/kavram/özel isimleri, kısaltmaları ve duyma hatalarını PDF'e göre düzelt.
+1. Yalnızca bozuk yazılmış teknik terimleri, ilaç/kavram/özel isimleri, kısaltmaları ve duyma hatalarını referans materyale göre düzelt.
 2. ASLA özetleme yapma, cümle silme, paragraf kısaltma veya hocanın anlatımını yeniden yazma.
 3. KRİTİK: Hocanın sözlü olarak anlattığı ancak PDF slaytlarda YER ALMAYAN tüm bilgiler, ek örnekler, sınav vurguları ve klinik/pratik detaylar son derece değerlidir. Bunları "PDF'te yok" diye ASLA silme veya değiştirme; eksiksiz koru.
 4. Sadece düzeltilmiş tam metni döndür; başına veya sonuna açıklama ekleme.`;
@@ -1162,7 +1265,7 @@ Görevin: Revize edilmiş ders metnini çalışmaya hazır, düzenli ve şık bi
 KESİN KAYIPSIZLIK KURALLARI:
 1. BU BİR ÖZET DEĞİLDİR. Metindeki HER BİR olguyu, mekanizma ara basamağını, neden-sonuç ilişkisini, sayısal eşiği/değeri, istisnayı, sınıflamayı ve örneği eksiksiz biçimde aktar.
 2. Yalnızca konuşma dilinin gürültüsünü temizle ("eee", "şimdi arkadaşlar", gereksiz sözlü tekrarlar, ders dışı sınıf konuşmaları).
-3. Hocanın PDF'te olmayıp derste özellikle sözlü eklediği veya vurguladığı ("burası önemli", "dikkat", ek örnekler) noktaların başına <span class="sozlu-ek">Sözlü Ek</span> etiketini koy.
+3. Hocanın referans slaytlarda olmayıp derste özellikle sözlü eklediği veya vurguladığı ("burası önemli", "dikkat", ek örnekler) noktaların başına <span class="sozlu-ek">Sözlü Ek</span> etiketini koy.
 4. Uygun yerlerde <h2>, <h3> başlıkları, madde işaretleri (<ul>), karşılaştırmalar için <table> ve kritik uyarılar için <div class="callout"> kullan.
 5. Önceki parçadan gelen 15 saniyelik örtüşme (overlap) cümlesi verilmişse, o cümleyi tekrar etmeden konuyu kaldığı yerden kesintisiz devam ettir.
 6. Yalnızca <section class="chunk-note">...</section> HTML kodunu döndür. <html>, <head>, <body> veya Markdown kod bloğu ekleme.`;
@@ -1205,7 +1308,20 @@ YANIT FORMATI (Sadece geçerli JSON):
       $('btn-download-txt').disabled = state.revisedParts.length === 0;
     }
 
-    async function processOneUnit({ idx, total, label, audioPart, pdfPart, apiKey, model, prevTail }) {
+    function appendPdfRefToParts(partsArr, pdfRef, leadText) {
+      if (!pdfRef) {
+        partsArr.push({ text: leadText });
+        return;
+      }
+      if (pdfRef.type === 'parts') {
+        partsArr.push(...pdfRef.parts);
+        partsArr.push({ text: leadText });
+      } else if (pdfRef.type === 'text') {
+        partsArr.push({ text: `REFERANS DERS SLAYTLARI METNİ:\n${pdfRef.text}\n\n${leadText}` });
+      }
+    }
+
+    async function processOneUnit({ idx, total, label, audioPart, pdfRef, apiKey, model, prevTail }) {
       const basePct = (idx / total) * 100;
       const stepPct = 100 / total;
 
@@ -1223,10 +1339,11 @@ YANIT FORMATI (Sadece geçerli JSON):
       setProgress(basePct + stepPct * 0.35, `Parça ${idx + 1}/${total} — 2/4 PDF Referanslı Revizyon`);
       log(`[Parça ${idx + 1}/${total}] Aşama 2: PDF referanslı terminoloji revizyonu...`);
       const reviseParts = [];
-      if (pdfPart) reviseParts.push(pdfPart);
-      reviseParts.push({
-        text: `${pdfPart ? 'Ekteki ders PDF materyalini yalnızca terminoloji ve yazım sözlüğü olarak referans al.' : 'Referans PDF yüklenmedi; yalnızca açık yazım hatalarını anlam değiştirmeden düzelt.'}\n\nHAM TRANSKRİPT:\n${rawTranscript}`
-      });
+      appendPdfRefToParts(
+        reviseParts,
+        pdfRef,
+        `${pdfRef ? 'Verilen ders PDF materyalini yalnızca terminoloji ve yazım sözlüğü olarak referans al.' : 'Referans PDF yüklenmedi; yalnızca açık yazım hatalarını anlam değiştirmeden düzelt.'}\n\nHAM TRANSKRİPT:\n${rawTranscript}`
+      );
 
       const revisedText = await callGemini({
         apiKey,
@@ -1241,10 +1358,11 @@ YANIT FORMATI (Sadece geçerli JSON):
       setProgress(basePct + stepPct * 0.65, `Parça ${idx + 1}/${total} — 3/4 Kayıpsız Ders Notu`);
       log(`[Parça ${idx + 1}/${total}] Aşama 3: Kayıpsız yapılandırılmış HTML notu üretiliyor...`);
       const noteParts = [];
-      if (pdfPart) noteParts.push(pdfPart);
-      noteParts.push({
-        text: `${prevTail ? `ÖNCEKİ PARÇANIN SON KISMI (Sadece örtüşen cümleyi tekrar etmemek için bağlam):\n${prevTail}\n\n` : ''}REVİZE EDİLMİŞ DERS METNİ (Parça ${idx + 1} / ${label}):\n${revisedText}`
-      });
+      appendPdfRefToParts(
+        noteParts,
+        pdfRef,
+        `${prevTail ? `ÖNCEKİ PARÇANIN SON KISMI (Sadece örtüşen cümleyi tekrar etmemek için bağlam):\n${prevTail}\n\n` : ''}REVİZE EDİLMİŞ DERS METNİ (Parça ${idx + 1} / ${label}):\n${revisedText}`
+      );
 
       let chunkHtml = stripFences(await callGemini({
         apiKey,
@@ -1306,11 +1424,9 @@ YANIT FORMATI (Sadece geçerli JSON):
       setProgress(2, 'Hazırlanıyor...');
 
       try {
-        let pdfPart = null;
+        let pdfRef = null;
         if (state.pdfFile) {
-          log(`Referans PDF hazırlanıyor: ${state.pdfFile.name} (${(state.pdfFile.size / 1024 / 1024).toFixed(2)} MB)...`);
-          pdfPart = await prepareMediaPart(state.pdfFile, 'application/pdf', state.pdfFile.name);
-          log('Referans PDF belleğe alındı.', 'ok');
+          pdfRef = await preparePdfReference(state.pdfFile);
         } else {
           log('Uyarı: Referans PDF seçilmedi. Revizyon yalnızca genel akademik yazım üzerinden yapılacak.', 'warn');
         }
@@ -1318,13 +1434,13 @@ YANIT FORMATI (Sadece geçerli JSON):
         let prevTail = '';
         for (let i = 0; i < segments.length; i++) {
           const seg = segments[i];
-          const audioPart = await prepareMediaPart(seg.blob, seg.mimeType, `parca_${i + 1}`);
+          const audioPart = await prepareAudioPart(seg.blob, seg.mimeType, `parca_${i + 1}`);
           prevTail = await processOneUnit({
             idx: i,
             total: segments.length,
             label: seg.label,
             audioPart,
-            pdfPart,
+            pdfRef,
             apiKey,
             model,
             prevTail
@@ -1355,7 +1471,7 @@ YANIT FORMATI (Sadece geçerli JSON):
 
       try {
         const userSec = Math.max(120, (Number($('chunk-min').value) || 5) * 60);
-        const maxWavSec = Math.min(300, userSec); // En fazla 5 dk (~9.6 MB WAV)
+        const maxWavSec = Math.min(300, userSec);
         const { chunks, durationSec } = await splitAudioFileInBrowser(file, maxWavSec, 15);
         log(`Ses süresi: ${formatTime(durationSec)} → ${chunks.length} güvenli parçaya (~${(chunks[0].blob.size / 1024 / 1024).toFixed(1)} MB) bölündü.`, 'ok');
         await runPipelineFromSegments(chunks, false);
@@ -1370,7 +1486,7 @@ YANIT FORMATI (Sadece geçerli JSON):
     });
 
     /* ============================================================
-       7. ÇIKTI İNDİRME VE PDF YAZDIRMA
+       8. ÇIKTI İNDİRME VE PDF YAZDIRMA
     ============================================================ */
     $('btn-print-pdf').addEventListener('click', () => {
       document.querySelector('[data-tab="note"]').click();
