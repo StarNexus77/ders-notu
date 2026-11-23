@@ -225,7 +225,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 10px 12px;
-      height: 195px;
+      height: 205px;
       overflow-y: auto;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 0.79rem;
@@ -446,8 +446,8 @@
   <div class="app-container">
     <header class="app-header no-print">
       <div>
-        <h1>Kayıpsız Ders Notu Asistanı <span style="font-size:0.75rem; color:var(--success); font-weight:600;">v4 · Hibrit Hızlı</span></h1>
-        <div class="hint">Groq Whisper (3-5 sn STT) → Gemini PDF Revizyon → Kayıpsız Not → Eksik Denetimi → PDF</div>
+        <h1>Kayıpsız Ders Notu Asistanı <span style="font-size:0.75rem; color:var(--success); font-weight:600;">v5 · Hafif &amp; Hızlı</span></h1>
+        <div class="hint">Hafif 8kHz Ses (~2.7 MB/parça) → Groq Whisper (Canlı %) → Tek Seferlik PDF OCR → Kayıpsız Not &amp; Audit → PDF</div>
       </div>
       <div class="row fit">
         <span id="status-badge" class="badge">Hazır</span>
@@ -483,13 +483,14 @@
         <div class="row">
           <div>
             <label for="chunk-min">Parça Süresi (dk)</label>
-            <input type="number" id="chunk-min" value="5" min="2" max="8" />
+            <input type="number" id="chunk-min" value="3" min="2" max="8" />
           </div>
           <div>
             <label for="cooldown-sec">İstek Arası Bekleme (sn)</label>
             <input type="number" id="cooldown-sec" value="8" min="2" max="60" />
           </div>
         </div>
+        <div class="hint">3 dk 8 kHz konuşma sesi yalnızca ~2.7 MB tutar; yavaş bağlantıda bile hızla yüklenir.</div>
 
         <label for="lecture-title">Ders Başlığı (PDF üst başlığı)</label>
         <input type="text" id="lecture-title" placeholder="Örn: Farmakoloji - Antiemetikler" />
@@ -502,7 +503,7 @@
         <div id="pdf-info" class="hint">Henüz PDF seçilmedi.</div>
         <label class="check-row">
           <input type="checkbox" id="pdf-text-only" checked />
-          <span>Hızlı &amp; kota dostu PDF okuma (metin çıkar, taranmışsa otomatik görselleştir)</span>
+          <span>Hızlı &amp; kota dostu PDF okuma (taranmış PDF'i tek seferde metne dök)</span>
         </label>
 
         <div class="recorder-box" style="margin-top: 12px;">
@@ -538,7 +539,7 @@
       <div class="progress-wrap">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
-      <div class="log-box" id="log-box">Sistem hazır (v4). Önce Groq ve Gemini anahtarlarını kaydedip "Bağlantıları Test Et" butonuna basabilirsin.</div>
+      <div class="log-box" id="log-box">Sistem hazır (v5). Ses parçaları 3 kat küçültüldü (~2.7 MB) ve canlı yükleme yüzdesi eklendi.</div>
     </div>
 
     <div class="card">
@@ -645,7 +646,6 @@
       htmlParts: [],
       auditReports: [],
       lastApiCallAt: 0,
-      // Kaldığı yerden devam etme durumu
       resumeSegments: null,
       resumePdfRef: null,
       resumeNextIdx: 0,
@@ -725,7 +725,7 @@
       localStorage.setItem('gemini_model', $('model-input').value.trim());
     });
 
-    // 2 saniyelik hızlı bağlantı testi
+    // Gerçek ses yüklemeli bağlantı testi
     $('btn-test-apis').addEventListener('click', async () => {
       const geminiKey = $('api-key').value.trim();
       const groqKey = $('groq-key').value.trim();
@@ -736,14 +736,28 @@
       if (groqKey) {
         try {
           const t0 = performance.now();
-          const res = await fetch('https://api.groq.com/openai/v1/models', {
-            headers: { 'Authorization': `Bearer ${groqKey}` }
+          const tinyWav = encodeWavMono(new Float32Array(4000), 8000); // 0.5 sn (~8 KB)
+          const form = new FormData();
+          form.append('file', tinyWav, 'test.wav');
+          form.append('model', 'whisper-large-v3-turbo');
+          form.append('language', 'tr');
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 25000);
+          const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${groqKey}` },
+            body: form,
+            signal: controller.signal
           });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          clearTimeout(t);
           const ms = Math.round(performance.now() - t0);
-          log(`Groq Whisper bağlantısı BAŞARILI (${ms} ms). Ses→Metin çok hızlı çalışacak.`, 'ok');
+          if (!res.ok) {
+            const errTxt = await res.text();
+            throw new Error(`HTTP ${res.status} — ${errTxt.slice(0, 140)}`);
+          }
+          log(`Groq Whisper ses yükleme testi BAŞARILI (${ms} ms).`, 'ok');
         } catch (e) {
-          log(`Groq bağlantısı BAŞARISIZ: ${e.message} (Anahtarı kontrol et)`, 'err');
+          log(`Groq Whisper testi BAŞARISIZ: ${e.message}`, 'err');
         }
       } else {
         log('Groq anahtarı girilmedi — 1. aşamada Gemini STT kullanılacak.', 'warn');
@@ -852,7 +866,7 @@
     });
 
     /* ============================================================
-       3. SINIRSIZ BOYUTLU PDF OKUYUCU (PDF.JS)
+       3. SINIRSIZ BOYUTLU PDF OKUYUCU + TEK SEFERLİK OCR
     ============================================================ */
     async function preparePdfReference(file) {
       const mb = file.size / 1024 / 1024;
@@ -901,22 +915,17 @@
         return { type: 'text', text: fullText };
       }
 
-      if (mb <= 14.2) {
-        const b64 = await blobToBase64(file);
-        return { type: 'parts', parts: [{ inline_data: { mime_type: 'application/pdf', data: b64 } }] };
-      }
-
       log(`Taranmış PDF tespit edildi (${pdf.numPages} sayfa), hafif JPEG'e sıkıştırılıyor...`, 'warn');
       const imgParts = [];
       let totalBytes = 0;
-      const maxBudget = 10.5 * 1024 * 1024;
+      const maxBudget = 9.5 * 1024 * 1024;
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
 
       for (let p = 1; p <= pdf.numPages; p++) {
         const page = await pdf.getPage(p);
         const vp1 = page.getViewport({ scale: 1 });
-        const scale = Math.min(1.2, 920 / Math.max(vp1.width, vp1.height));
+        const scale = Math.min(1.15, 880 / Math.max(vp1.width, vp1.height));
         const vp = page.getViewport({ scale });
         canvas.width = Math.round(vp.width);
         canvas.height = Math.round(vp.height);
@@ -933,10 +942,33 @@
       return { type: 'parts', parts: imgParts };
     }
 
+    async function ocrScannedPdfOnce(pdfRef, apiKey, model) {
+      if (!pdfRef || pdfRef.type !== 'parts' || !$('pdf-text-only').checked) return pdfRef;
+      setProgress(4, 'Taranmış PDF tek seferde metne dönüştürülüyor...');
+      log(`Taranmış PDF (${pdfRef.parts.length} görsel) tek seferde metne/terim listesine çevriliyor (kotayı korur)...`);
+      try {
+        const ocrText = await callGemini({
+          apiKey,
+          model,
+          systemInstruction: 'Sen akademik slayt OCR uzmanısın. Verilen tüm slayt görsellerindeki başlıkları, metinleri, tabloları, teknik/tıbbi terimleri, kısaltmaları ve sayısal değerleri sayfa sayfa eksiksiz metne dök. Özetleme yapma.',
+          parts: [
+            ...pdfRef.parts,
+            { text: 'Tüm slayt sayfalarının içeriğini ve teknik terimlerini sayfa sırasıyla eksiksiz metne dök.' }
+          ],
+          temperature: 0.0
+        });
+        log(`Taranmış PDF başarıyla metne çevrildi (${ocrText.length.toLocaleString('tr-TR')} karakter). Artık her parçada görsel yüklenmeyecek!`, 'ok');
+        return { type: 'text', text: ocrText };
+      } catch (e) {
+        log(`Tek seferlik PDF OCR atlandı (${e.message}), görseller doğrudan referans verilecek.`, 'warn');
+        return pdfRef;
+      }
+    }
+
     /* ============================================================
-       4. TARAYICI İÇİ BÜYÜK SES DOSYASI BÖLÜCÜ (16 kHz MONO WAV)
+       4. HAFİF 8 kHz MONO WAV BÖLÜCÜ (~0.96 MB / dk)
     ============================================================ */
-    function encodeWavMono16k(float32Samples, sampleRate) {
+    function encodeWavMono(float32Samples, sampleRate) {
       const numSamples = float32Samples.length;
       const buffer = new ArrayBuffer(44 + numSamples * 2);
       const view = new DataView(buffer);
@@ -965,10 +997,10 @@
       return new Blob([buffer], { type: 'audio/wav' });
     }
 
-    async function splitAudioFileInBrowser(file, maxChunkSec = 300, overlapSec = 15) {
-      log('Ses dosyası tarayıcıda çözülüyor ve parçalara bölünüyor...');
+    async function splitAudioFileInBrowser(file, maxChunkSec = 180, overlapSec = 12) {
+      log('Ses dosyası tarayıcıda çözülüyor ve hafif 8 kHz parçalara bölünüyor...');
       const arrayBuffer = await file.arrayBuffer();
-      const targetRate = 16000;
+      const targetRate = 8000; // Konuşma bandı: 0.96 MB / dk (16 kHz'in yarısı)
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       let audioCtx;
       try { audioCtx = new AudioCtx({ sampleRate: targetRate }); } catch (_) { audioCtx = new AudioCtx(); }
@@ -981,7 +1013,7 @@
       const origLen = audioBuffer.length;
       const durationSec = audioBuffer.duration;
       const targetLen = Math.floor(durationSec * targetRate);
-      const mono16k = new Float32Array(targetLen);
+      const mono8k = new Float32Array(targetLen);
       const ratio = origRate / targetRate;
       const chData = [];
       for (let c = 0; c < numChannels; c++) chData.push(audioBuffer.getChannelData(c));
@@ -990,7 +1022,7 @@
         for (let i = 0; i < targetLen; i++) {
           let sum = 0;
           for (let c = 0; c < numChannels; c++) sum += chData[c][i];
-          mono16k[i] = sum / numChannels;
+          mono8k[i] = sum / numChannels;
         }
       } else {
         for (let i = 0; i < targetLen; i++) {
@@ -1000,7 +1032,7 @@
           for (let s = from; s < to; s++) {
             for (let c = 0; c < numChannels; c++) sum += chData[c][s];
           }
-          mono16k[i] = sum / ((to - from) * numChannels);
+          mono8k[i] = sum / ((to - from) * numChannels);
         }
       }
 
@@ -1009,8 +1041,8 @@
       let index = 0;
       while (startSec < durationSec) {
         const endSec = Math.min(durationSec, startSec + maxChunkSec);
-        const wavBlob = encodeWavMono16k(
-          mono16k.subarray(Math.floor(startSec * targetRate), Math.min(targetLen, Math.floor(endSec * targetRate))),
+        const wavBlob = encodeWavMono(
+          mono8k.subarray(Math.floor(startSec * targetRate), Math.min(targetLen, Math.floor(endSec * targetRate))),
           targetRate
         );
         chunks.push({
@@ -1073,8 +1105,8 @@
     }
 
     function scheduleNextOverlap(mimeType) {
-      const chunkMs = Math.max(2, Number($('chunk-min').value) || 5) * 60 * 1000;
-      const overlapMs = 15000;
+      const chunkMs = Math.max(2, Number($('chunk-min').value) || 3) * 60 * 1000;
+      const overlapMs = 12000;
       state.overlapTimer = setTimeout(() => {
         if (!state.recording) return;
         const nextIndex = (state.activeRec ? state.activeRec.segIndex : 0) + 1;
@@ -1140,7 +1172,7 @@
         $('btn-stop-process').disabled = false;
         $('btn-process-file').disabled = true;
         setStatus('Kayıt Alınıyor', 'rec');
-        log(`Kayıt başladı (${$('chunk-min').value} dk parça + 15 sn örtüşme).`, 'ok');
+        log(`Kayıt başladı (${$('chunk-min').value} dk parça + 12 sn örtüşme).`, 'ok');
       } catch (err) {
         log(`Mikrofon başlatılamadı: ${err.message}`, 'err');
         alert('Mikrofon izni verilmedi.');
@@ -1177,7 +1209,7 @@
     });
 
     /* ============================================================
-       6. GROQ WHISPER STT + GEMINI API (90 SN TIMEOUT + RETRY)
+       6. GROQ WHISPER (CANLI YÜKLEME % + 180 SN TIMEOUT) & GEMINI
     ============================================================ */
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -1190,9 +1222,42 @@
       });
     }
 
-    async function transcribeWithGroq(blob, groqKey) {
+    function sendGroqXhrOnce(formData, groqKey, statusPrefix, sizeMB) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const t0 = performance.now();
+        let uploadDoneLogged = false;
+
+        xhr.open('POST', 'https://api.groq.com/openai/v1/audio/transcriptions', true);
+        xhr.setRequestHeader('Authorization', `Bearer ${groqKey}`);
+        xhr.timeout = 180000; // 180 saniye
+
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) {
+            const pct = Math.round((ev.loaded / ev.total) * 100);
+            const loadedMB = (ev.loaded / 1024 / 1024).toFixed(1);
+            $('step-summary').textContent = `${statusPrefix} — Yükleniyor: %${pct} (${loadedMB}/${sizeMB} MB)`;
+            if (pct >= 100 && !uploadDoneLogged) {
+              uploadDoneLogged = true;
+              const upSec = ((performance.now() - t0) / 1000).toFixed(1);
+              $('step-summary').textContent = `${statusPrefix} — Yüklendi (${upSec} sn), Groq metne döküyor...`;
+            }
+          }
+        };
+
+        xhr.onload = () => {
+          resolve({ status: xhr.status, body: xhr.responseText, ms: Math.round(performance.now() - t0) });
+        };
+        xhr.onerror = () => reject(new Error('Ağ bağlantı hatası (XHR error)'));
+        xhr.ontimeout = () => reject(new Error('TIMEOUT_180'));
+        xhr.send(formData);
+      });
+    }
+
+    async function transcribeWithGroq(blob, groqKey, statusPrefix) {
       const mime = (blob.type || 'audio/wav').toLowerCase();
       const ext = mime.includes('webm') ? 'webm' : mime.includes('mp4') ? 'm4a' : mime.includes('mpeg') ? 'mp3' : 'wav';
+      const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
 
       for (let attempt = 1; attempt <= 3; attempt++) {
         const formData = new FormData();
@@ -1202,37 +1267,25 @@
         formData.append('temperature', '0');
         formData.append('response_format', 'json');
 
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 90000);
         try {
-          const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${groqKey}` },
-            body: formData,
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-
-          if (res.ok) {
-            const data = await res.json();
+          const { status, body, ms } = await sendGroqXhrOnce(formData, groqKey, statusPrefix, sizeMB);
+          if (status >= 200 && status < 300) {
+            const data = JSON.parse(body);
             const text = (data.text || '').trim();
             if (!text) throw new Error('Groq boş transkript döndürdü.');
-            return text;
+            return { text, sec: (ms / 1000).toFixed(1) };
           }
-
-          const errText = await res.text();
-          if ((res.status === 429 || res.status >= 500) && attempt < 3) {
+          if ((status === 429 || status >= 500) && attempt < 3) {
             const waitSec = 25 * attempt;
-            log(`Groq HTTP ${res.status}. ${waitSec} sn sonra tekrar denenecek (${attempt}/3)...`, 'warn');
+            log(`Groq HTTP ${status}. ${waitSec} sn sonra tekrar denenecek (${attempt}/3)...`, 'warn');
             await sleep(waitSec * 1000);
             continue;
           }
-          throw new Error(`Groq Hatası (HTTP ${res.status}): ${errText.slice(0, 220)}`);
+          throw new Error(`Groq Hatası (HTTP ${status}): ${body.slice(0, 220)}`);
         } catch (err) {
-          clearTimeout(timer);
-          if (err.name === 'AbortError' && attempt < 3) {
-            log(`Groq 90 sn zaman aşımı. Tekrar deneniyor (${attempt}/3)...`, 'warn');
-            await sleep(5000);
+          if (err.message === 'TIMEOUT_180' && attempt < 3) {
+            log(`Groq 180 sn zaman aşımı. 10 sn sonra tekrar deneniyor (${attempt}/3)...`, 'warn');
+            await sleep(10000);
             continue;
           }
           throw err;
@@ -1261,7 +1314,7 @@
       for (let attempt = 1; attempt <= 4; attempt++) {
         state.lastApiCallAt = Date.now();
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 95000);
+        const timer = setTimeout(() => controller.abort(), 120000);
 
         try {
           const res = await fetch(url, {
@@ -1293,7 +1346,7 @@
         } catch (err) {
           clearTimeout(timer);
           if (err.name === 'AbortError' && attempt < 4) {
-            log(`Gemini 95 sn zaman aşımı. 15 sn sonra tekrar denenecek (${attempt}/4)...`, 'warn');
+            log(`Gemini 120 sn zaman aşımı. 15 sn sonra tekrar denenecek (${attempt}/4)...`, 'warn');
             await sleep(15000);
             continue;
           }
@@ -1336,7 +1389,7 @@ KESİN KAYIPSIZLIK KURALLARI:
 2. Yalnızca konuşma dilinin gürültüsünü temizle ("eee", "şimdi arkadaşlar", gereksiz sözlü tekrarlar, ders dışı sınıf konuşmaları).
 3. Hocanın referans slaytlarda olmayıp derste özellikle sözlü eklediği veya vurguladığı ("burası önemli", "dikkat", ek örnekler) noktaların başına <span class="sozlu-ek">Sözlü Ek</span> etiketini koy.
 4. Uygun yerlerde <h2>, <h3> başlıkları, madde işaretleri (<ul>), karşılaştırmalar için <table> ve kritik uyarılar için <div class="callout"> kullan.
-5. Önceki parçadan gelen 15 saniyelik örtüşme (overlap) cümlesi verilmişse, o cümleyi tekrar etmeden konuyu kaldığı yerden kesintisiz devam ettir.
+5. Önceki parçadan gelen 12 saniyelik örtüşme (overlap) cümlesi verilmişse, o cümleyi tekrar etmeden konuyu kaldığı yerden kesintisiz devam ettir.
 6. Yalnızca <section class="chunk-note">...</section> HTML kodunu döndür. <html>, <head>, <body> veya Markdown kod bloğu ekleme.`;
 
     const PROMPT_STAGE_4_AUDIT = `Sen acımasız bir akademik kalite denetçisisin.
@@ -1392,13 +1445,14 @@ YANIT FORMATI (Sadece geçerli JSON):
       const stepPct = 100 / total;
       const label = seg.label;
 
-      // AŞAMA 1: STT (Groq Whisper varsa saniyeler içinde, yoksa Gemini)
       setProgress(basePct + stepPct * 0.1, `Parça ${idx + 1}/${total} — 1/4 Ham Transkript`);
       let rawTranscript = '';
       if (groqKey) {
-        log(`[Parça ${idx + 1}/${total}] Aşama 1 (Groq Whisper): Ses metne dökülüyor (${label})...`);
-        rawTranscript = await transcribeWithGroq(seg.blob, groqKey);
-        log(`[Parça ${idx + 1}] Groq dökümü tamam (${rawTranscript.length} karakter).`, 'ok');
+        const mb = (seg.blob.size / 1024 / 1024).toFixed(1);
+        log(`[Parça ${idx + 1}/${total}] Aşama 1 (Groq Whisper, ${mb} MB): Ses metne dökülüyor (${label})...`);
+        const gRes = await transcribeWithGroq(seg.blob, groqKey, `Parça ${idx + 1}/${total} (1/4)`);
+        rawTranscript = gRes.text;
+        log(`[Parça ${idx + 1}] Groq dökümü tamam (${rawTranscript.length} karakter, ${gRes.sec} sn).`, 'ok');
       } else {
         log(`[Parça ${idx + 1}/${total}] Aşama 1 (Gemini STT): Ses metne dökülüyor (${label})...`);
         const b64 = await blobToBase64(seg.blob);
@@ -1413,7 +1467,6 @@ YANIT FORMATI (Sadece geçerli JSON):
         log(`[Parça ${idx + 1}] Ham döküm alındı (${rawTranscript.length} karakter).`, 'ok');
       }
 
-      // AŞAMA 2: PDF Referanslı Revizyon
       setProgress(basePct + stepPct * 0.35, `Parça ${idx + 1}/${total} — 2/4 PDF Referanslı Revizyon`);
       log(`[Parça ${idx + 1}/${total}] Aşama 2: PDF referanslı terminoloji revizyonu...`);
       const reviseParts = [];
@@ -1432,7 +1485,6 @@ YANIT FORMATI (Sadece geçerli JSON):
       state.revisedParts.push({ label, text: revisedText });
       log(`[Parça ${idx + 1}] Revizyon tamamlandı.`, 'ok');
 
-      // AŞAMA 3: Kayıpsız HTML Notu
       setProgress(basePct + stepPct * 0.65, `Parça ${idx + 1}/${total} — 3/4 Kayıpsız Ders Notu`);
       log(`[Parça ${idx + 1}/${total}] Aşama 3: Kayıpsız HTML ders notu üretiliyor...`);
       const noteParts = [];
@@ -1450,7 +1502,6 @@ YANIT FORMATI (Sadece geçerli JSON):
       }));
       log(`[Parça ${idx + 1}] İlk HTML notu hazırlandı.`, 'ok');
 
-      // AŞAMA 4: Eksik Denetimi (Audit)
       setProgress(basePct + stepPct * 0.85, `Parça ${idx + 1}/${total} — 4/4 Eksik Denetimi`);
       log(`[Parça ${idx + 1}/${total}] Aşama 4: Eksik bilgi denetimi (Audit) yapılıyor...`);
       let auditRes = { label, eksik_var: false, eksikler: [] };
@@ -1525,7 +1576,7 @@ YANIT FORMATI (Sadece geçerli JSON):
         log(`İŞLEM DURAKLADI (Parça ${state.resumeNextIdx + 1}/${segments.length}): ${err.message}`, 'err');
         $('btn-resume').textContent = `Kaldığı Yerden Devam Et (Parça ${state.resumeNextIdx + 1}/${segments.length})`;
         $('btn-resume').style.display = 'block';
-        alert(`Parça ${state.resumeNextIdx + 1} sırasında hata: ${err.message}\n\nMerak etme, önceki parçalar korundu. "Kaldığı Yerden Devam Et" butonuyla devam edebilirsin.`);
+        alert(`Parça ${state.resumeNextIdx + 1} sırasında hata: ${err.message}\n\nÖnceki parçalar korundu. "Kaldığı Yerden Devam Et" butonuyla devam edebilirsin.`);
       } finally {
         $('btn-start').disabled = false;
         if (state.uploadedAudioFile) $('btn-process-file').disabled = false;
@@ -1534,6 +1585,7 @@ YANIT FORMATI (Sadece geçerli JSON):
 
     async function runPipelineFromSegments(segments, clearDbOnDone = false) {
       const apiKey = $('api-key').value.trim();
+      const model = $('model-input').value.trim() || 'gemini-3.8-flash';
       if (!apiKey) return alert('Önce Google AI Studio API anahtarını gir.');
       if (!segments.length) return alert('İşlenecek ses parçası bulunamadı.');
 
@@ -1549,6 +1601,7 @@ YANIT FORMATI (Sadece geçerli JSON):
         let pdfRef = null;
         if (state.pdfFile) {
           pdfRef = await preparePdfReference(state.pdfFile);
+          pdfRef = await ocrScannedPdfOnce(pdfRef, apiKey, model);
         } else {
           log('Uyarı: Referans PDF seçilmedi.', 'warn');
         }
@@ -1580,10 +1633,10 @@ YANIT FORMATI (Sadece geçerli JSON):
       setProgress(1, 'Ses dosyası parçalara bölünüyor...');
 
       try {
-        const userSec = Math.max(120, (Number($('chunk-min').value) || 5) * 60);
-        const maxWavSec = Math.min(360, userSec); // En fazla 6 dk (~11.5 MB WAV, Groq 25 MB limitinin çok altında)
-        const { chunks, durationSec } = await splitAudioFileInBrowser(file, maxWavSec, 15);
-        log(`Ses süresi: ${formatTime(durationSec)} → ${chunks.length} parçaya (~${(chunks[0].blob.size / 1024 / 1024).toFixed(1)} MB) bölündü.`, 'ok');
+        const userSec = Math.max(120, (Number($('chunk-min').value) || 3) * 60);
+        const maxWavSec = Math.min(360, userSec);
+        const { chunks, durationSec } = await splitAudioFileInBrowser(file, maxWavSec, 12);
+        log(`Ses süresi: ${formatTime(durationSec)} → ${chunks.length} hafif parçaya (~${(chunks[0].blob.size / 1024 / 1024).toFixed(1)} MB) bölündü.`, 'ok');
         await runPipelineFromSegments(chunks, false);
       } catch (err) {
         setStatus('Hata Oluştu');
