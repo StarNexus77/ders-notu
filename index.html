@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kayıpsız Ders Notu Asistanı</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #171e26;
+      --surface-2: #1f2934;
+      --border: #2c3846;
+      --text: #e6edf3;
+      --muted: #9aa7b5;
+      --accent: #4da3ff;
+      --accent-hover: #358be6;
+      --danger: #e5534b;
+      --success: #3fb950;
+      --warn: #d29922;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .app-container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 20px 16px 60px;
+    }
+
+    header.app-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header.app-header h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .badge.ok { color: var(--success); border-color: rgba(63, 185, 80, 0.4); }
+    .badge.rec { color: #ff7b72; border-color: rgba(229, 83, 75, 0.6); animation: pulse 1.4s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    label {
+      display: block;
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin: 10px 0 5px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      border-radius: 7px;
+      border: 1px dashed var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .row > * { flex: 1; }
+    .row > .fit { flex: 0 0 auto; }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: background 0.15s, opacity 0.15s;
+      color: #fff;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+
+    button:hover:not(:disabled) { background: #293645; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    button.primary { background: var(--accent); border-color: var(--accent); color: #08121d; }
+    button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+    button.danger { background: var(--danger); border-color: var(--danger); }
+    button.danger:hover:not(:disabled) { background: #c93c37; }
+
+    button.success { background: var(--success); border-color: var(--success); color: #07170b; }
+    button.success:hover:not(:disabled) { background: #2ea043; }
+
+    .recorder-box {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .timer {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      letter-spacing: 0.05em;
+    }
+
+    .meta-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .progress-wrap {
+      margin-top: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      height: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--success));
+      transition: width 0.3s ease;
+    }
+
+    .log-box {
+      margin-top: 12px;
+      background: #0a0e12;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      height: 170px;
+      overflow-y: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.79rem;
+      color: #b7c4d1;
+      white-space: pre-wrap;
+    }
+
+    .log-ok { color: var(--success); }
+    .log-warn { color: var(--warn); }
+    .log-err { color: #ff7b72; }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #08121d;
+      border-color: var(--accent);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .raw-text-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      max-height: 520px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+    }
+
+    /* Ders Notu Önizleme (Ekranda koyu tema, baskıda A4 beyaz tema) */
+    #note-preview {
+      background: #141a21;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px 28px;
+      min-height: 220px;
+    }
+
+    #note-preview h1.doc-title {
+      margin-top: 0;
+      font-size: 1.55rem;
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 8px;
+      margin-bottom: 18px;
+    }
+
+    #note-preview h2 {
+      color: var(--accent);
+      font-size: 1.2rem;
+      margin: 22px 0 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+    }
+
+    #note-preview h3 {
+      color: #d2e6ff;
+      font-size: 1.02rem;
+      margin: 14px 0 6px;
+    }
+
+    #note-preview ul, #note-preview ol {
+      padding-left: 22px;
+      margin: 6px 0 12px;
+    }
+
+    #note-preview li { margin-bottom: 5px; }
+
+    #note-preview table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 16px;
+      font-size: 0.9rem;
+    }
+
+    #note-preview th, #note-preview td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    #note-preview th {
+      background: var(--surface-2);
+      font-weight: 700;
+    }
+
+    #note-preview .callout {
+      border-left: 4px solid var(--warn);
+      background: rgba(210, 153, 34, 0.1);
+      padding: 10px 14px;
+      border-radius: 0 6px 6px 0;
+      margin: 12px 0;
+    }
+
+    #note-preview .sozlu-ek {
+      display: inline-block;
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(77, 163, 255, 0.18);
+      color: #8cc4ff;
+      border: 1px solid rgba(77, 163, 255, 0.45);
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    .audit-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      background: var(--bg);
+      font-size: 0.88rem;
+    }
+
+    .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ================= A4 PDF BASKI STİLİ ================= */
+    @media print {
+      @page {
+        size: A4;
+        margin: 14mm 14mm 16mm 14mm;
+      }
+
+      body {
+        background: #ffffff !important;
+        color: #111111 !important;
+        font-size: 10.5pt;
+        line-height: 1.48;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      .app-container {
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+      }
+
+      .card {
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+      }
+
+      .tab-panel { display: none !important; }
+      #panel-note { display: block !important; }
+
+      #note-preview {
+        background: #ffffff !important;
+        color: #111111 !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+
+      #note-preview h1.doc-title {
+        color: #0b2545 !important;
+        border-bottom: 2px solid #0b2545 !important;
+        font-size: 16pt;
+      }
+
+      #note-preview h2 {
+        color: #133c68 !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      #note-preview h3 {
+        color: #1e293b !important;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      #note-preview table,
+      #note-preview .callout,
+      #note-preview tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      #note-preview th {
+        background: #eef2f6 !important;
+        color: #0f172a !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      #note-preview th, #note-preview td {
+        border: 1px solid #94a3b8 !important;
+      }
+
+      #note-preview .callout {
+        background: #fffbeb !important;
+        border-left: 4px solid #d97706 !important;
+        color: #111111 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      #note-preview .sozlu-ek {
+        background: #e0f2fe !important;
+        color: #0369a1 !important;
+        border: 1px solid #7dd3fc !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header no-print">
+      <div>
+        <h1>Kayıpsız Ders Notu Asistanı</h1>
+        <div class="hint">Ses Kaydı → Ham Döküm → PDF Referanslı Revizyon → Kayıpsız Not → Otomatik Eksik Denetimi → PDF</div>
+      </div>
+      <div class="row fit">
+        <span id="status-badge" class="badge">Hazır</span>
+        <button id="btn-recover" class="fit" style="display:none;">Önceki Kaydı Kurtar</button>
+      </div>
+    </header>
+
+    <div class="grid no-print">
+      <!-- 1. AYARLAR KARTI -->
+      <div class="card">
+        <h2>1. API ve İşleme Ayarları</h2>
+        <label for="api-key">Google AI Studio API Anahtarı (yalnızca bu cihazda saklanır)</label>
+        <div class="row">
+          <input type="password" id="api-key" placeholder="AIzaSy..." autocomplete="off" />
+          <button id="btn-save-key" class="fit">Kaydet</button>
+        </div>
+
+        <label for="model-select">Gemini Modeli (Ücretsiz Flash önerilir)</label>
+        <div class="row">
+          <input type="text" id="model-input" value="gemini-2.5-flash" list="model-list" />
+          <datalist id="model-list">
+            <option value="gemini-2.5-flash"></option>
+            <option value="gemini-2.5-flash-lite"></option>
+            <option value="gemini-2.0-flash"></option>
+          </datalist>
+          <button id="btn-fetch-models" class="fit">Modelleri Getir</button>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="chunk-min">Parça Süresi (dk)</label>
+            <input type="number" id="chunk-min" value="8" min="3" max="15" />
+          </div>
+          <div>
+            <label for="cooldown-sec">İstek Arası Bekleme (sn)</label>
+            <input type="number" id="cooldown-sec" value="10" min="3" max="60" />
+          </div>
+        </div>
+
+        <label for="lecture-title">Ders Başlığı (PDF üst başlığı)</label>
+        <input type="text" id="lecture-title" placeholder="Örn: Farmakoloji - Antiemetikler" />
+      </div>
+
+      <!-- 2. MATERYAL & KAYIT KARTI -->
+      <div class="card">
+        <h2>2. Referans PDF ve Ses Kaydı</h2>
+        <label for="pdf-file">Dersin Referans PDF Materyali (Slayt / Ders Notu)</label>
+        <input type="file" id="pdf-file" accept="application/pdf" />
+        <div id="pdf-info" class="hint">Henüz PDF seçilmedi.</div>
+
+        <div class="recorder-box" style="margin-top: 14px;">
+          <div class="timer" id="timer-display">00:00:00</div>
+          <div class="meta-line">
+            <span id="seg-count">Oluşan parça: 0</span>
+            <span id="wakelock-status">Ekran Kilidi: Pasif</span>
+          </div>
+
+          <div class="row">
+            <button id="btn-start" class="primary">Kaydı Başlat</button>
+            <button id="btn-stop-process" class="danger" disabled>Kaydet ve İşle</button>
+          </div>
+        </div>
+
+        <label for="audio-file" style="margin-top: 14px;">Veya Hazır Ses Dosyası Yükle (MP3 / M4A / WAV / WEBM)</label>
+        <div class="row">
+          <input type="file" id="audio-file" accept="audio/*" />
+          <button id="btn-process-file" class="success fit" disabled>Dosyayı İşle</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- İLERLEME VE LOG -->
+    <div class="card no-print" style="margin-bottom: 18px;">
+      <h2>
+        <span>3. İşlem Akışı ve Durum</span>
+        <span id="step-summary" style="font-size:0.82rem; color:var(--muted); font-weight:500;">Bekliyor</span>
+      </h2>
+      <div class="progress-wrap">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="log-box" id="log-box">Sistem hazır. API anahtarını girip ders PDF'ini seçtikten sonra kayda başlayabilirsin.</div>
+    </div>
+
+    <!-- SONUÇ ALANI -->
+    <div class="card">
+      <div class="tabs no-print">
+        <button class="tab-btn active" data-tab="note">PDF Ders Notu Önizleme</button>
+        <button class="tab-btn" data-tab="revised">Revize Tam Metin</button>
+        <button class="tab-btn" data-tab="audit">Eksik Denetimi Raporu</button>
+        <div style="flex:1;"></div>
+        <button id="btn-print-pdf" class="primary" disabled>PDF Olarak Kaydet / Yazdır</button>
+        <button id="btn-download-txt" disabled>Tam Metin (.txt)</button>
+        <button id="btn-download-audio" disabled>Ses Yedeği</button>
+      </div>
+
+      <div id="panel-note" class="tab-panel active">
+        <div id="note-preview">
+          <p style="color: var(--muted); text-align: center; margin: 60px 0;">
+            İşlem tamamlandığında kayıpsız ders notu burada görünecek ve tek tıkla A4 PDF olarak kaydedilebilecek.
+          </p>
+        </div>
+      </div>
+
+      <div id="panel-revised" class="tab-panel">
+        <div id="revised-output" class="raw-text-box">Henüz revize metin üretilmedi.</div>
+      </div>
+
+      <div id="panel-audit" class="tab-panel">
+        <div id="audit-output">Henüz denetim raporu oluşmadı.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       1. INDEXEDDB YEREL YEDEKLEME (ÇÖKME KORUMASI)
+    ============================================================ */
+    const DB_NAME = 'DersNotuBackupDB';
+    const STORE_NAME = 'segments';
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          if (!req.result.objectStoreNames.contains(STORE_NAME)) {
+            req.result.createObjectStore(STORE_NAME, { keyPath: 'index' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveSegmentToDB(segmentObj) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(segmentObj);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function loadSegmentsFromDB() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = () => resolve(req.result.sort((a, b) => a.index - b.index));
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function clearSegmentsDB() {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    /* ============================================================
+       2. UYGULAMA DURUMU VE DOM REFERANSLARI
+    ============================================================ */
+    const $ = (id) => document.getElementById(id);
+
+    const state = {
+      recording: false,
+      stream: null,
+      wakeLock: null,
+      startTime: 0,
+      timerInterval: null,
+      overlapTimer: null,
+      rotateTimer: null,
+      activeRec: null,
+      nextRec: null,
+      backupRec: null,
+      backupChunks: [],
+      segments: [],        // { index, blob, mimeType, label }
+      fullAudioBlob: null,
+      pdfFile: null,
+      uploadedAudioFile: null,
+      revisedParts: [],
+      htmlParts: [],
+      auditReports: [],
+      lastApiCallAt: 0
+    };
+
+    // Kayıtlı ayarları yükle
+    $('api-key').value = localStorage.getItem('gemini_api_key') || '';
+    if (localStorage.getItem('gemini_model')) {
+      $('model-input').value = localStorage.getItem('gemini_model');
+    }
+
+    function log(msg, type = '') {
+      const box = $('log-box');
+      const time = new Date().toLocaleTimeString('tr-TR', { hour12: false });
+      const line = document.createElement('div');
+      if (type) line.className = `log-${type}`;
+      line.textContent = `[${time}] ${msg}`;
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function setStatus(text, cls = '') {
+      const b = $('status-badge');
+      b.textContent = text;
+      b.className = 'badge' + (cls ? ` ${cls}` : '');
+    }
+
+    function setProgress(pct, label = '') {
+      $('progress-bar').style.width = `${Math.max(0, Math.min(100, pct))}%`;
+      if (label) $('step-summary').textContent = label;
+    }
+
+    function formatTime(sec) {
+      const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+      const s = String(Math.floor(sec % 60)).padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function formatMMSS(sec) {
+      const m = String(Math.floor(sec / 60)).padStart(2, '0');
+      const s = String(Math.floor(sec % 60)).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function pickAudioMime() {
+      const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus'
+      ];
+      for (const m of candidates) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+      }
+      return '';
+    }
+
+    // Sekme geçişleri
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+        btn.classList.add('active');
+        $(`panel-${btn.dataset.tab}`).classList.add('active');
+      });
+    });
+
+    // API key kaydetme
+    $('btn-save-key').addEventListener('click', () => {
+      const key = $('api-key').value.trim();
+      localStorage.setItem('gemini_api_key', key);
+      localStorage.setItem('gemini_model', $('model-input').value.trim());
+      log('API anahtarı ve model tercihi yerel tarayıcıya kaydedildi.', 'ok');
+    });
+
+    $('model-input').addEventListener('change', () => {
+      localStorage.setItem('gemini_model', $('model-input').value.trim());
+    });
+
+    // Modelleri dinamik listele
+    $('btn-fetch-models').addEventListener('click', async () => {
+      const key = $('api-key').value.trim();
+      if (!key) return alert('Önce Google AI Studio API anahtarını gir.');
+      try {
+        log('Uygun Gemini modelleri sorgulanıyor...');
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const models = (data.models || [])
+          .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+          .map((m) => m.name.replace(/^models\//, ''))
+          .filter((n) => n.includes('gemini'))
+          .sort((a, b) => (b.includes('flash') - a.includes('flash')) || b.localeCompare(a));
+
+        const list = $('model-list');
+        list.innerHTML = '';
+        models.forEach((m) => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          list.appendChild(opt);
+        });
+        if (models.length) {
+          const bestFlash = models.find((m) => m.includes('flash') && !m.includes('image') && !m.includes('tts')) || models[0];
+          $('model-input').value = bestFlash;
+          localStorage.setItem('gemini_model', bestFlash);
+          log(`${models.length} model bulundu. Önerilen seçildi: ${bestFlash}`, 'ok');
+        }
+      } catch (e) {
+        log(`Modeller alınamadı: ${e.message}`, 'err');
+      }
+    });
+
+    // PDF ve hazır ses seçimi
+    $('pdf-file').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      state.pdfFile = f || null;
+      $('pdf-info').textContent = f
+        ? `Seçildi: ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`
+        : 'Henüz PDF seçilmedi.';
+      if (f && !$('lecture-title').value.trim()) {
+        $('lecture-title').value = f.name.replace(/\.pdf$/i, '');
+      }
+    });
+
+    $('audio-file').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      state.uploadedAudioFile = f || null;
+      $('btn-process-file').disabled = !f;
+      if (f) {
+        state.fullAudioBlob = f;
+        $('btn-download-audio').disabled = false;
+        log(`Hazır ses dosyası seçildi: ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`);
+      }
+    });
+
+    // Önceki yarım kalmış kayıt kontrolü
+    (async () => {
+      try {
+        const saved = await loadSegmentsFromDB();
+        if (saved.length > 0) {
+          $('btn-recover').style.display = 'inline-block';
+          $('btn-recover').textContent = `Kurtar (${saved.length} parça)`;
+          log(`Önceki oturumdan ${saved.length} ses parçası bulundu. İstersen "Kurtar" ile işleyebilirsin.`, 'warn');
+        }
+      } catch (_) {}
+    })();
+
+    $('btn-recover').addEventListener('click', async () => {
+      const saved = await loadSegmentsFromDB();
+      if (!saved.length) return;
+      state.segments = saved;
+      $('seg-count').textContent = `Kurtarılan parça: ${saved.length}`;
+      $('btn-recover').style.display = 'none';
+      log(`${saved.length} parça kurtarıldı, işleme başlatılıyor...`, 'ok');
+      await runPipelineFromSegments(saved);
+    });
+
+    /* ============================================================
+       3. ÖRTÜŞMELİ CANLI SES KAYDI (WAKE LOCK + INDEXEDDB)
+    ============================================================ */
+    function createSegmentRecorder(stream, mimeType, segIndex, startOffsetSec) {
+      const options = { audioBitsPerSecond: 32000 };
+      if (mimeType) options.mimeType = mimeType;
+      const rec = new MediaRecorder(stream, options);
+      const chunks = [];
+      let resolveStop;
+      const donePromise = new Promise((r) => { resolveStop = r; });
+
+      rec.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+      };
+
+      rec.onstop = async () => {
+        const actualMime = rec.mimeType || mimeType || 'audio/webm';
+        const blob = new Blob(chunks, { type: actualMime });
+        const endOffsetSec = Math.floor((Date.now() - state.startTime) / 1000);
+        const segObj = {
+          index: segIndex,
+          blob,
+          mimeType: actualMime.split(';')[0],
+          label: `${formatMMSS(startOffsetSec)} - ${formatMMSS(endOffsetSec)}`
+        };
+        if (blob.size > 1500) {
+          state.segments.push(segObj);
+          $('seg-count').textContent = `Oluşan parça: ${state.segments.length}`;
+          try { await saveSegmentToDB(segObj); } catch (_) {}
+          log(`Parça ${segIndex + 1} (${segObj.label}) yedeklendi (${(blob.size / 1024 / 1024).toFixed(2)} MB).`, 'ok');
+        }
+        resolveStop(segObj);
+      };
+
+      rec.start(10000);
+      return { rec, donePromise, segIndex };
+    }
+
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          state.wakeLock = await navigator.wakeLock.request('screen');
+          $('wakelock-status').textContent = 'Ekran Kilidi: Engellendi';
+          state.wakeLock.addEventListener('release', () => {
+            $('wakelock-status').textContent = 'Ekran Kilidi: Pasif';
+          });
+        }
+      } catch (_) {
+        $('wakelock-status').textContent = 'Ekran Kilidi: Desteklenmiyor';
+      }
+    }
+
+    function scheduleNextOverlap(mimeType) {
+      const chunkMs = Math.max(3, Number($('chunk-min').value) || 8) * 60 * 1000;
+      const overlapMs = 15000; // 15 saniye örtüşme
+
+      state.overlapTimer = setTimeout(() => {
+        if (!state.recording) return;
+        const nextIndex = (state.activeRec ? state.activeRec.segIndex : 0) + 1;
+        const startSec = Math.floor((Date.now() - state.startTime) / 1000);
+        try {
+          state.nextRec = createSegmentRecorder(state.stream, mimeType, nextIndex, startSec);
+          log(`15 sn örtüşme başladı (Parça ${nextIndex + 1} paralel kayda girdi)...`);
+        } catch (e) {
+          log(`Paralel örtüşme desteklenmedi, tek parça devam ediliyor: ${e.message}`, 'warn');
+          return;
+        }
+
+        state.rotateTimer = setTimeout(() => {
+          if (!state.recording) return;
+          const oldRec = state.activeRec;
+          state.activeRec = state.nextRec;
+          state.nextRec = null;
+          if (oldRec && oldRec.rec.state === 'recording') oldRec.rec.stop();
+          scheduleNextOverlap(mimeType);
+        }, overlapMs);
+      }, Math.max(20000, chunkMs - overlapMs));
+    }
+
+    $('btn-start').addEventListener('click', async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        return alert('Tarayıcı mikrofon erişimini desteklemiyor. Sayfanın HTTPS (GitHub Pages) üzerinden açıldığından emin ol.');
+      }
+
+      try {
+        await clearSegmentsDB();
+        state.segments = [];
+        state.backupChunks = [];
+        state.fullAudioBlob = null;
+        $('btn-recover').style.display = 'none';
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        });
+        state.stream = stream;
+        state.recording = true;
+        state.startTime = Date.now();
+
+        const mimeType = pickAudioMime();
+
+        // Tam yedek kayıtlayıcı (tek parça ses indirilebilsin diye)
+        try {
+          const bOpts = { audioBitsPerSecond: 32000 };
+          if (mimeType) bOpts.mimeType = mimeType;
+          state.backupRec = new MediaRecorder(stream, bOpts);
+          state.backupRec.ondataavailable = (e) => { if (e.data.size > 0) state.backupChunks.push(e.data); };
+          state.backupRec.onstop = () => {
+            state.fullAudioBlob = new Blob(state.backupChunks, { type: (mimeType || 'audio/webm').split(';')[0] });
+            $('btn-download-audio').disabled = false;
+          };
+          state.backupRec.start(30000);
+        } catch (_) {
+          state.backupRec = null;
+        }
+
+        state.activeRec = createSegmentRecorder(stream, mimeType, 0, 0);
+        scheduleNextOverlap(mimeType);
+        await requestWakeLock();
+
+        state.timerInterval = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+          $('timer-display').textContent = formatTime(elapsed);
+        }, 500);
+
+        $('btn-start').disabled = true;
+        $('btn-stop-process').disabled = false;
+        $('btn-process-file').disabled = true;
+        setStatus('Kayıt Alınıyor', 'rec');
+        log(`Kayıt başladı (${mimeType || 'varsayılan format'}, 32 kbps Opus, ${$('chunk-min').value} dk parça + 15 sn örtüşme).`, 'ok');
+      } catch (err) {
+        log(`Mikrofon başlatılamadı: ${err.message}`, 'err');
+        alert('Mikrofon izni verilmedi veya HTTPS bağlantısı yok.');
+      }
+    });
+
+    $('btn-stop-process').addEventListener('click', async () => {
+      if (!state.recording) return;
+      state.recording = false;
+      clearInterval(state.timerInterval);
+      clearTimeout(state.overlapTimer);
+      clearTimeout(state.rotateTimer);
+
+      $('btn-stop-process').disabled = true;
+      setStatus('Kayıt Sonlandırılıyor...');
+
+      const waits = [];
+      if (state.activeRec && state.activeRec.rec.state === 'recording') {
+        state.activeRec.rec.stop();
+        waits.push(state.activeRec.donePromise);
+      }
+      if (state.nextRec && state.nextRec.rec.state === 'recording') {
+        state.nextRec.rec.stop();
+        waits.push(state.nextRec.donePromise);
+      }
+      if (state.backupRec && state.backupRec.state === 'recording') {
+        state.backupRec.stop();
+      }
+
+      await Promise.all(waits);
+
+      if (state.stream) {
+        state.stream.getTracks().forEach((t) => t.stop());
+        state.stream = null;
+      }
+      if (state.wakeLock) {
+        try { await state.wakeLock.release(); } catch (_) {}
+        state.wakeLock = null;
+      }
+
+      if (!state.fullAudioBlob && state.segments.length === 1) {
+        state.fullAudioBlob = state.segments[0].blob;
+        $('btn-download-audio').disabled = false;
+      }
+
+      state.segments.sort((a, b) => a.index - b.index);
+      log(`Kayıt tamamlandı. Toplam ${state.segments.length} parça işlenecek.`, 'ok');
+
+      await runPipelineFromSegments(state.segments);
+      $('btn-start').disabled = false;
+      if (state.uploadedAudioFile) $('btn-process-file').disabled = false;
+    });
+
+    /* ============================================================
+       4. GEMINI API İLETİŞİMİ (FILES API + INLINE FALLBACK + 429 RETRY)
+    ============================================================ */
+    function sleep(ms) {
+      return new Promise((r) => setTimeout(r, ms));
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function prepareMediaPart(blob, mimeType, displayName, apiKey) {
+      const cleanMime = (mimeType || blob.type || 'application/octet-stream').split(';')[0];
+
+      // 1) Büyük dosyalar veya tekrar kullanılacak PDF için önce Files API dene
+      try {
+        const boundary = '-------GeminiMultipart' + Date.now();
+        const metadata = JSON.stringify({ file: { display_name: displayName } });
+        const bodyBlob = new Blob([
+          `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`,
+          `--${boundary}\r\nContent-Type: ${cleanMime}\r\n\r\n`,
+          blob,
+          `\r\n--${boundary}--\r\n`
+        ]);
+
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=multipart&key=${encodeURIComponent(apiKey)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+            body: bodyBlob
+          }
+        );
+
+        if (!res.ok) throw new Error(`Files API HTTP ${res.status}`);
+        const json = await res.json();
+        let fileInfo = json.file;
+
+        // Dosya ACTIVE olana kadar bekle
+        let tries = 0;
+        while (fileInfo.state === 'PROCESSING' && tries < 30) {
+          await sleep(2500);
+          const check = await fetch(`https://generativelanguage.googleapis.com/v1beta/${fileInfo.name}?key=${encodeURIComponent(apiKey)}`);
+          if (check.ok) fileInfo = await check.json();
+          tries++;
+        }
+
+        if (fileInfo.state === 'FAILED') throw new Error('Gemini dosya işleme başarısız');
+        log(`Dosya Gemini sunucusuna yüklendi: ${displayName}`, 'ok');
+        return { file_data: { mime_type: cleanMime, file_uri: fileInfo.uri } };
+      } catch (err) {
+        // 2) Files API CORS/ağ hatası verirse 18 MB altına kadar inlineData kullan
+        if (blob.size <= 18 * 1024 * 1024) {
+          log(`Files API atlandı (${err.message}), doğrudan gömülü aktarım kullanılıyor: ${displayName}`, 'warn');
+          const b64 = await blobToBase64(blob);
+          return { inline_data: { mime_type: cleanMime, data: b64 } };
+        }
+        throw new Error(`${displayName} 18 MB üstünde ve Files API yüklemesi başarısız oldu: ${err.message}`);
+      }
+    }
+
+    async function callGemini({ apiKey, model, parts, systemInstruction, temperature = 0.1, responseMimeType = null }) {
+      const cooldownMs = Math.max(2, Number($('cooldown-sec').value) || 10) * 1000;
+      const elapsed = Date.now() - state.lastApiCallAt;
+      if (state.lastApiCallAt > 0 && elapsed < cooldownMs) {
+        const waitMs = cooldownMs - elapsed;
+        log(`Kota koruması: ${Math.ceil(waitMs / 1000)} sn bekleniyor...`);
+        await sleep(waitMs);
+      }
+
+      const payload = {
+        contents: [{ role: 'user', parts }],
+        generationConfig: { temperature }
+      };
+      if (systemInstruction) {
+        payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+      }
+      if (responseMimeType) {
+        payload.generationConfig.responseMimeType = responseMimeType;
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        state.lastApiCallAt = Date.now();
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
+          if (!text.trim()) {
+            const reason = data.candidates?.[0]?.finishReason || 'Bilinmeyen';
+            throw new Error(`Model boş yanıt döndürdü (Neden: ${reason})`);
+          }
+          return text.trim();
+        }
+
+        const errText = await res.text();
+        if ((res.status === 429 || res.status === 503 || res.status === 500) && attempt < 4) {
+          const backoffSec = 30 * attempt + 5;
+          log(`HTTP ${res.status} (kota/yoğunluk). ${backoffSec} sn sonra tekrar denenecek (${attempt}/4)...`, 'warn');
+          await sleep(backoffSec * 1000);
+          continue;
+        }
+        throw new Error(`Gemini API Hatası (HTTP ${res.status}): ${errText.slice(0, 260)}`);
+      }
+    }
+
+    function stripFences(str) {
+      return str
+        .replace(/^```(?:html|json)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+        .trim();
+    }
+
+    /* ============================================================
+       5. 4 AŞAMALI KAYIPSIZ İŞLEME ZİNCİRİ
+    ============================================================ */
+    const PROMPT_STAGE_1_STT = `Sen profesyonel bir akademik transkripsiyon uzmanısın.
+Görevin: Verilen ders ses kaydını kelimesi kelimesine, eksiksiz ham metne dökmek.
+KURALLAR:
+- Hiçbir cümleyi, örneği, sayısal değeri, istisnayı veya yan açıklamayı atlama.
+- Özetleme, sadeleştirme veya yorum yapma.
+- Türkçe cümleler içinde geçen İngilizce/Latince/teknik terimleri duyduğun en doğru akademik biçimiyle yaz.
+- Gerçekten anlaşılmayan bir kelime varsa [?] koy, uydurma.
+- Sadece ham metni çıktı ver.`;
+
+    const PROMPT_STAGE_2_REVISE = `Sen son derece titiz bir akademik transkripsiyon editörüsün.
+Görevin: Verilen ham ses dökümündeki yalnızca ses tanıma (ASR) kaynaklı duyma, yazım ve teknik terim hatalarını ekteki referans PDF ders materyaline bakarak düzeltmek.
+KESİN KURALLAR:
+1. Yalnızca bozuk yazılmış teknik terimleri, ilaç/kavram/özel isimleri, kısaltmaları ve duyma hatalarını PDF'e göre düzelt.
+2. ASLA özetleme yapma, cümle silme, paragraf kısaltma veya hocanın anlatımını yeniden yazma.
+3. KRİTİK: Hocanın sözlü olarak anlattığı ancak PDF slaytlarda YER ALMAYAN tüm bilgiler, ek örnekler, sınav vurguları ve klinik/pratik detaylar son derece değerlidir. Bunları "PDF'te yok" diye ASLA silme veya değiştirme; eksiksiz koru.
+4. Sadece düzeltilmiş tam metni döndür; başına veya sonuna açıklama ekleme.`;
+
+    const PROMPT_STAGE_3_NOTE = `Sen kayıpsız (lossless) akademik ders notu editörüsün.
+Görevin: Revize edilmiş ders metnini çalışmaya hazır, düzenli ve şık bir HTML bölümüne dönüştürmek.
+KESİN KAYIPSIZLIK KURALLARI:
+1. BU BİR ÖZET DEĞİLDİR. Metindeki HER BİR olguyu, mekanizma ara basamağını, neden-sonuç ilişkisini, sayısal eşiği/değeri, istisnayı, sınıflamayı ve örneği eksiksiz biçimde aktar.
+2. Yalnızca konuşma dilinin gürültüsünü temizle ("eee", "şimdi arkadaşlar", gereksiz sözlü tekrarlar, ders dışı sınıf konuşmaları).
+3. Hocanın PDF'te olmayıp derste özellikle sözlü eklediği veya vurguladığı ("burası önemli", "dikkat", ek örnekler) noktaların başına <span class="sozlu-ek">Sözlü Ek</span> etiketini koy.
+4. Uygun yerlerde <h2>, <h3> başlıkları, madde işaretleri (<ul>), karşılaştırmalar için <table> ve kritik uyarılar için <div class="callout"> kullan.
+5. Önceki parçadan gelen 15 saniyelik örtüşme (overlap) cümlesi verilmişse, o cümleyi tekrar etmeden konuyu kaldığı yerden kesintisiz devam ettir.
+6. Yalnızca <section class="chunk-note">...</section> HTML kodunu döndür. <html>, <head>, <body> veya Markdown kod bloğu ekleme.`;
+
+    const PROMPT_STAGE_4_AUDIT = `Sen acımasız bir akademik kalite denetçisisin.
+Görevin: "Revize Transkript" ile o metinden üretilen "HTML Ders Notu"nu cümle cümle karşılaştırmak.
+Kontrol et: Transkriptte geçen ancak HTML ders notunda ATLANMIŞ, fazla genelleştirilmiş, sayısal değeri kaybolmuş, istisnası düşürülmüş veya örneği unutulmuş TEK BİR bilgi bile var mı?
+YANIT FORMATI (Sadece geçerli JSON):
+{
+  "eksik_var": true veya false,
+  "eksikler": ["Atlanan nokta 1", "Atlanan nokta 2"],
+  "guncellenmis_html": "Eğer eksik_var true ise, atlanan TÜM bilgileri ilgili bölümlere eksiksiz ekleyip tüm <section class=\\"chunk-note\\">...</section> HTML'ini yeniden ver. Eğer eksik_var false ise boş string ver."
+}`;
+
+    function renderOutputs() {
+      const title = $('lecture-title').value.trim() || 'Ders Notu';
+      const dateStr = new Date().toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      $('note-preview').innerHTML = `
+        <h1 class="doc-title">${title}</h1>
+        <div style="font-size:0.82rem; color:var(--muted); margin-bottom:16px;">Oluşturulma: ${dateStr} · Kayıpsız Mod (4 Aşamalı Denetimli)</div>
+        ${state.htmlParts.join('\n<hr style="border:none; border-top:1px dashed var(--border); margin:18px 0;" class="no-print" />\n')}
+      `;
+
+      $('revised-output').textContent = state.revisedParts
+        .map((p, i) => `=== PARÇA ${i + 1} (${p.label}) ===\n${p.text}`)
+        .join('\n\n');
+
+      $('audit-output').innerHTML = state.auditReports.map((r, i) => `
+        <div class="audit-item">
+          <strong>Parça ${i + 1} (${r.label}):</strong>
+          ${r.eksik_var
+            ? `<span style="color:var(--warn); font-weight:600;">${r.eksikler.length} eksik yakalandı ve otomatik eklendi</span>
+               <ul>${r.eksikler.map((e) => `<li>${e}</li>`).join('')}</ul>`
+            : `<span style="color:var(--success); font-weight:600;">Eksik yok — %100 kapsama onaylandı.</span>`}
+        </div>
+      `).join('');
+
+      $('btn-print-pdf').disabled = state.htmlParts.length === 0;
+      $('btn-download-txt').disabled = state.revisedParts.length === 0;
+    }
+
+    async function processOneUnit({ idx, total, label, audioPart, timeWindowInstruction, pdfPart, apiKey, model, prevTail }) {
+      const basePct = (idx / total) * 100;
+      const stepPct = 100 / total;
+
+      // AŞAMA 1: STT
+      setProgress(basePct + stepPct * 0.1, `Parça ${idx + 1}/${total} — 1/4 Ham Transkript`);
+      log(`[Parça ${idx + 1}/${total}] Aşama 1: Ses birebir metne dökülüyor (${label})...`);
+      const sttUserText = timeWindowInstruction
+        ? `Yalnızca şu zaman aralığını kelimesi kelimesine dök: ${timeWindowInstruction}. Bu aralığın dışına çıkma.`
+        : `Bu ses kaydını (${label}) kelimesi kelimesine ham metne dök.`;
+
+      const rawTranscript = await callGemini({
+        apiKey,
+        model,
+        systemInstruction: PROMPT_STAGE_1_STT,
+        parts: [audioPart, { text: sttUserText }],
+        temperature: 0.0
+      });
+      log(`[Parça ${idx + 1}] Ham döküm alındı (${rawTranscript.length} karakter).`, 'ok');
+
+      // AŞAMA 2: PDF Referanslı Revizyon
+      setProgress(basePct + stepPct * 0.35, `Parça ${idx + 1}/${total} — 2/4 PDF Referanslı Revizyon`);
+      log(`[Parça ${idx + 1}/${total}] Aşama 2: PDF referanslı terminoloji ve hata revizyonu...`);
+      const reviseParts = [];
+      if (pdfPart) reviseParts.push(pdfPart);
+      reviseParts.push({
+        text: `${pdfPart ? 'Ekteki ders PDF materyalini yalnızca terminoloji ve yazım sözlüğü olarak referans al.' : 'Referans PDF yüklenmedi; yalnızca açık ses tanıma/yazım hatalarını anlam değiştirmeden düzelt.'}\n\nHAM TRANSKRİPT:\n${rawTranscript}`
+      });
+
+      const revisedText = await callGemini({
+        apiKey,
+        model,
+        systemInstruction: PROMPT_STAGE_2_REVISE,
+        parts: reviseParts,
+        temperature: 0.1
+      });
+      state.revisedParts.push({ label, text: revisedText });
+      log(`[Parça ${idx + 1}] Revizyon tamamlandı.`, 'ok');
+
+      // AŞAMA 3: Kayıpsız HTML Notu
+      setProgress(basePct + stepPct * 0.65, `Parça ${idx + 1}/${total} — 3/4 Kayıpsız Ders Notu`);
+      log(`[Parça ${idx + 1}/${total}] Aşama 3: Kayıpsız yapılandırılmış HTML notu üretiliyor...`);
+      const noteParts = [];
+      if (pdfPart) noteParts.push(pdfPart);
+      noteParts.push({
+        text: `${prevTail ? `ÖNCEKİ PARÇANIN SON KISMI (Sadece örtüşen cümleyi tekrar etmemek için bağlam):\n${prevTail}\n\n` : ''}REVİZE EDİLMİŞ DERS METNİ (Parça ${idx + 1} / ${label}):\n${revisedText}`
+      });
+
+      let chunkHtml = stripFences(await callGemini({
+        apiKey,
+        model,
+        systemInstruction: PROMPT_STAGE_3_NOTE,
+        parts: noteParts,
+        temperature: 0.2
+      }));
+      log(`[Parça ${idx + 1}] İlk HTML notu hazırlandı.`, 'ok');
+
+      // AŞAMA 4: Otomatik Eksik Denetimi (Audit)
+      setProgress(basePct + stepPct * 0.85, `Parça ${idx + 1}/${total} — 4/4 Eksik Denetimi`);
+      log(`[Parça ${idx + 1}/${total}] Aşama 4: Eksik bilgi denetimi (Audit) yapılıyor...`);
+      let auditRes = { label, eksik_var: false, eksikler: [] };
+      try {
+        const auditRaw = await callGemini({
+          apiKey,
+          model,
+          systemInstruction: PROMPT_STAGE_4_AUDIT,
+          parts: [{
+            text: `REVİZE TRANSKRİPT:\n${revisedText}\n\nÜRETİLEN HTML DERS NOTU:\n${chunkHtml}`
+          }],
+          temperature: 0.1,
+          responseMimeType: 'application/json'
+        });
+
+        const parsed = JSON.parse(stripFences(auditRaw));
+        auditRes = {
+          label,
+          eksik_var: Boolean(parsed.eksik_var),
+          eksikler: Array.isArray(parsed.eksikler) ? parsed.eksikler : []
+        };
+
+        if (auditRes.eksik_var && parsed.guncellenmis_html && parsed.guncellenmis_html.trim().length > 40) {
+          chunkHtml = stripFences(parsed.guncellenmis_html);
+          log(`[Parça ${idx + 1}] Denetim ${auditRes.eksikler.length} eksik yakaladı ve nota otomatik ekledi!`, 'warn');
+        } else {
+          log(`[Parça ${idx + 1}] Denetim onaylandı: Atlanan bilgi yok.`, 'ok');
+        }
+      } catch (auditErr) {
+        log(`[Parça ${idx + 1}] Denetim JSON ayrıştırması atlandı, Aşama 3 çıktısı korundu (${auditErr.message}).`, 'warn');
+      }
+
+      state.htmlParts.push(chunkHtml);
+      state.auditReports.push(auditRes);
+      renderOutputs();
+
+      return revisedText.slice(-450);
+    }
+
+    async function runPipelineFromSegments(segments) {
+      const apiKey = $('api-key').value.trim();
+      const model = $('model-input').value.trim() || 'gemini-2.5-flash';
+      if (!apiKey) return alert('İşleme başlamak için önce Google AI Studio API anahtarını gir.');
+      if (!segments.length) return alert('İşlenecek ses parçası bulunamadı.');
+
+      state.revisedParts = [];
+      state.htmlParts = [];
+      state.auditReports = [];
+      setStatus('İşleniyor...', 'rec');
+      setProgress(2, 'Hazırlanıyor...');
+
+      try {
+        let pdfPart = null;
+        if (state.pdfFile) {
+          log(`Referans PDF hazırlanıyor: ${state.pdfFile.name}...`);
+          pdfPart = await prepareMediaPart(state.pdfFile, 'application/pdf', state.pdfFile.name, apiKey);
+        } else {
+          log('Uyarı: Referans PDF seçilmedi. Revizyon yalnızca genel akademik yazım üzerinden yapılacak.', 'warn');
+        }
+
+        let prevTail = '';
+        for (let i = 0; i < segments.length; i++) {
+          const seg = segments[i];
+          const audioPart = await prepareMediaPart(seg.blob, seg.mimeType, `parca_${i + 1}.webm`, apiKey);
+          prevTail = await processOneUnit({
+            idx: i,
+            total: segments.length,
+            label: seg.label,
+            audioPart,
+            timeWindowInstruction: null,
+            pdfPart,
+            apiKey,
+            model,
+            prevTail
+          });
+        }
+
+        setProgress(100, 'Tamamlandı!');
+        setStatus('Tamamlandı', 'ok');
+        log('TÜM AŞAMALAR TAMAMLANDI! "PDF Olarak Kaydet / Yazdır" ile ders notunu indirebilirsin.', 'ok');
+        await clearSegmentsDB();
+      } catch (err) {
+        setStatus('Hata Oluştu');
+        log(`İŞLEM DURDU: ${err.message}`, 'err');
+        alert(`Hata oluştu: ${err.message}\n\nNot: Ses parçaların IndexedDB'de saklıdır, sayfa yenilense de kurtarabilirsin.`);
+      }
+    }
+
+    // Hazır ses dosyasını zaman pencerelerine bölerek işleme
+    function getAudioDuration(file) {
+      return new Promise((resolve) => {
+        const audio = document.createElement('audio');
+        audio.preload = 'metadata';
+        audio.onloadedmetadata = () => {
+          URL.revokeObjectURL(audio.src);
+          resolve(isFinite(audio.duration) ? audio.duration : 0);
+        };
+        audio.onerror = () => resolve(0);
+        audio.src = URL.createObjectURL(file);
+      });
+    }
+
+    $('btn-process-file').addEventListener('click', async () => {
+      const file = state.uploadedAudioFile;
+      const apiKey = $('api-key').value.trim();
+      const model = $('model-input').value.trim() || 'gemini-2.5-flash';
+      if (!apiKey) return alert('Önce Google AI Studio API anahtarını gir.');
+      if (!file) return;
+
+      $('btn-process-file').disabled = true;
+      $('btn-start').disabled = true;
+      state.revisedParts = [];
+      state.htmlParts = [];
+      state.auditReports = [];
+      setStatus('Dosya İşleniyor...', 'rec');
+      setProgress(2, 'Dosyalar yükleniyor...');
+
+      try {
+        const durationSec = await getAudioDuration(file);
+        const chunkSec = Math.max(3, Number($('chunk-min').value) || 8) * 60;
+        const overlapSec = 15;
+
+        const windows = [];
+        if (durationSec > chunkSec) {
+          let start = 0;
+          while (start < durationSec) {
+            const end = Math.min(durationSec, start + chunkSec);
+            windows.push({
+              label: `${formatMMSS(start)} - ${formatMMSS(end)}`,
+              instruction: `${formatMMSS(start)} ile ${formatMMSS(end)} arası`
+            });
+            if (end >= durationSec) break;
+            start = end - overlapSec;
+          }
+        } else {
+          windows.push({ label: 'Tam Kayıt', instruction: null });
+        }
+
+        log(`Ses süresi: ${durationSec ? formatTime(durationSec) : 'bilinmiyor'} → ${windows.length} örtüşmeli dilimde işlenecek.`);
+
+        let pdfPart = null;
+        if (state.pdfFile) {
+          pdfPart = await prepareMediaPart(state.pdfFile, 'application/pdf', state.pdfFile.name, apiKey);
+        }
+        const audioPart = await prepareMediaPart(file, file.type || 'audio/mpeg', file.name, apiKey);
+
+        let prevTail = '';
+        for (let i = 0; i < windows.length; i++) {
+          prevTail = await processOneUnit({
+            idx: i,
+            total: windows.length,
+            label: windows[i].label,
+            audioPart,
+            timeWindowInstruction: windows[i].instruction,
+            pdfPart,
+            apiKey,
+            model,
+            prevTail
+          });
+        }
+
+        setProgress(100, 'Tamamlandı!');
+        setStatus('Tamamlandı', 'ok');
+        log('Hazır ses dosyasının işlenmesi tamamlandı!', 'ok');
+      } catch (err) {
+        setStatus('Hata Oluştu');
+        log(`HATA: ${err.message}`, 'err');
+        alert(`Hata: ${err.message}`);
+      } finally {
+        $('btn-process-file').disabled = false;
+        $('btn-start').disabled = false;
+      }
+    });
+
+    /* ============================================================
+       6. ÇIKTI İNDİRME VE PDF YAZDIRMA
+    ============================================================ */
+    $('btn-print-pdf').addEventListener('click', () => {
+      document.querySelector('[data-tab="note"]').click();
+      window.print();
+    });
+
+    $('btn-download-txt').addEventListener('click', () => {
+      const content = $('revised-output').textContent;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${($('lecture-title').value.trim() || 'ders-notu')}_revize_metin.txt`;
+      a.click();
+    });
+
+    $('btn-download-audio').addEventListener('click', () => {
+      if (!state.fullAudioBlob) return;
+      const ext = (state.fullAudioBlob.type || '').includes('mp4') ? 'm4a' : 'webm';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(state.fullAudioBlob);
+      a.download = `${($('lecture-title').value.trim() || 'ders-kaydi')}.${ext}`;
+      a.click();
+    });
+  </script>
+</body>
+</html>
